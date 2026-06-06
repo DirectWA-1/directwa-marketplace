@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export function Footer() {
   return (
     <footer className="bg-[#0F1C2E] text-gray-400 py-12 mt-16">
@@ -14,7 +16,7 @@ export function Footer() {
             <p className="text-sm">South Africa’s hybrid marketplace.<br />Direct deals. WhatsApp simple.</p>
           </div>
 
-          {/* Links */}
+          {/* Marketplace Links */}
           <div>
             <h4 className="font-semibold text-white mb-4">Marketplace</h4>
             <div className="space-y-2 text-sm">
@@ -29,7 +31,7 @@ export function Footer() {
             <div className="space-y-2 text-sm">
               <div>About Us</div>
               <div>How it Works</div>
-              <div>Trust & Safety</div>
+              <div>Trust &amp; Safety</div>
               <div>Contact</div>
             </div>
           </div>
