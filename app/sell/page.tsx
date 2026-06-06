@@ -15,24 +15,38 @@ export default function SellPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files).slice(0, 5 - images.length);
-      setImages([...images, ...newFiles]);
+      setImages(prev => [...prev, ...newFiles]);
     }
   };
 
   const removeImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadImages = async (): Promise<string[]> => {
+  // Improved image upload function
+  const uploadImages = async (files: File[]): Promise<string[]> => {
     const urls: string[] = [];
-    for (const image of images) {
-      const fileName = `${Date.now()}-${image.name}`;
-      const { data } = await supabase.storage.from('listing-images').upload(fileName, image);
-      if (data) {
-        const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-        urls.push(publicUrl);
+
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('listing-images')
+        .upload(fileName, file);
+
+      if (error) {
+        console.error('Upload error:', error);
+        continue;
       }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('listing-images')
+        .getPublicUrl(fileName);
+
+      urls.push(publicUrl);
     }
+
     return urls;
   };
 
@@ -49,20 +63,36 @@ export default function SellPage() {
         return;
       }
 
-      const imageUrls = await uploadImages();
+      // Upload images first
+      let imageUrls: string[] = [];
+      if (images.length > 0) {
+        imageUrls = await uploadImages(images);
+      }
 
+      // Save listing with image URLs
       const { error } = await supabase.from('listings').insert({
         user_id: user.id,
-        ...formData,
+        title: formData.title,
         price: parseFloat(formData.price),
+        location: formData.location,
+        category: formData.category,
+        condition: formData.condition,
+        description: formData.description,
         images: imageUrls,
         status: 'active'
       });
 
       if (error) throw error;
 
-      setMessage('✅ Listing published successfully! Redirecting...');
-      setTimeout(() => window.location.href = '/listings', 1200);
+      setMessage('✅ Listing published successfully!');
+      // Reset form
+      setFormData({ title: '', price: '', location: '', category: 'Electronics', condition: 'Good', description: '' });
+      setImages([]);
+
+      setTimeout(() => {
+        window.location.href = '/listings';
+      }, 1500);
+
     } catch (err: any) {
       setMessage('Error: ' + err.message);
     } finally {
