@@ -16,7 +16,7 @@ export function Footer() {
             <p className="text-sm">South Africa’s hybrid marketplace.<br />Direct deals. WhatsApp simple.</p>
           </div>
 
-          {/* Marketplace Links */}
+          {/* Marketplace */}
           <div>
             <h4 className="font-semibold text-white mb-4">Marketplace</h4>
             <div className="space-y-2 text-sm">
@@ -26,22 +26,24 @@ export function Footer() {
             </div>
           </div>
 
+          {/* Company */}
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <div className="space-y-2 text-sm">
-              <div>About Us</div>
-              <div>How it Works</div>
-              <div>Trust &amp; Safety</div>
+              <div><Link href="/about">About Us</Link></div>
+              <div><Link href="/how-it-works">How it Works</Link></div>
+              <div><Link href="/escrow-protection">Escrow Protection</Link></div>
               <div>Contact</div>
             </div>
           </div>
 
+          {/* Legal */}
           <div>
             <h4 className="font-semibold text-white mb-4">Legal</h4>
             <div className="space-y-2 text-sm">
-              <div>Terms of Service</div>
-              <div>Privacy Policy</div>
-              <div>Escrow Protection</div>
+              <div><Link href="/terms">Terms of Service</Link></div>
+              <div><Link href="/privacy">Privacy Policy</Link></div>
+              <div><Link href="/escrow-protection">Escrow Protection</Link></div>
             </div>
           </div>
         </div>
