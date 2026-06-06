@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+// Interfaces (must be at the top)
 interface Listing {
   id: string;
   title: string;
@@ -14,18 +15,15 @@ interface Listing {
   category: string;
   condition: string;
   images: string[];
+  user_id: string;
 }
 
-interface Listing {
+interface Review {
   id: string;
-  title: string;
-  price: number;
-  location: string;
-  description: string;
-  category: string;
-  condition: string;
-  images: string[];
-  user_id: string;   // ← Add this line
+  rating: number;
+  comment: string;
+  created_at: string;
+  reviewer_id: string;
 }
 
 export default function ListingDetail() {
@@ -38,7 +36,7 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  // Review form
+  // Review form states
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +44,7 @@ export default function ListingDetail() {
 
   useEffect(() => {
     if (id) {
-      fetchListingAndReviews();
+      fetchData();
       getCurrentUser();
     }
   }, [id]);
@@ -56,17 +54,21 @@ export default function ListingDetail() {
     setUser(user);
   };
 
-  const fetchListingAndReviews = async () => {
+  const fetchData = async () => {
     setLoading(true);
 
     // Fetch listing
-    const { data: listingData } = await supabase
+    const { data: listingData, error: listingError } = await supabase
       .from('listings')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (listingData) setListing(listingData);
+    if (listingError) {
+      console.error('Error fetching listing:', listingError);
+    } else if (listingData) {
+      setListing(listingData);
+    }
 
     // Fetch reviews
     const { data: reviewData } = await supabase
@@ -96,23 +98,23 @@ export default function ListingDetail() {
     const { error } = await supabase.from('reviews').insert({
       listing_id: listing.id,
       reviewer_id: user.id,
-      seller_id: listing.user_id, // Make sure your listings table has user_id
+      seller_id: listing.user_id,
       rating,
       comment: comment.trim() || null,
     });
 
     if (error) {
-      setReviewMessage('Error submitting review: ' + error.message);
+      setReviewMessage('Error: ' + error.message);
     } else {
-      setReviewMessage('Thank you! Your review has been submitted.');
+      setReviewMessage('Thank you! Your review was submitted.');
       setComment('');
       setRating(5);
-      fetchListingAndReviews(); // Refresh reviews
+      fetchData(); // Refresh reviews and average rating
     }
     setSubmitting(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) return <div className="p-8 text-center">Loading listing...</div>;
   if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
 
   return (
@@ -122,7 +124,7 @@ export default function ListingDetail() {
       </Link>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Image */}
+        {/* Image Section */}
         <div>
           <img 
             src={listing.images?.[0] || 'https://picsum.photos/id/20/800/600'} 
@@ -131,40 +133,53 @@ export default function ListingDetail() {
           />
         </div>
 
-        {/* Details */}
+        {/* Details Section */}
         <div>
           <div className="flex gap-2 mb-3">
-            {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
-            {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
+            {listing.category && (
+              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>
+            )}
+            {listing.condition && (
+              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>
+            )}
           </div>
 
           <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">{listing.title}</h1>
-          
+
           {/* Average Rating */}
           {averageRating > 0 && (
             <div className="flex items-center gap-2 mb-4">
-              <div className="text-yellow-500 text-xl">{'★'.repeat(Math.round(averageRating))}</div>
-              <span className="text-lg font-semibold">{averageRating}</span>
+              <div className="text-yellow-500 text-2xl">{'★'.repeat(Math.round(averageRating))}</div>
+              <span className="text-xl font-semibold">{averageRating}</span>
               <span className="text-gray-500">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
             </div>
           )}
 
-          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
-          <div className="mb-6 text-sm text-gray-600">📍 {listing.location}</div>
+          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">
+            R{listing.price.toLocaleString()}
+          </div>
+
+          <div className="mb-6 text-sm text-gray-600 flex items-center gap-2">
+            📍 {listing.location}
+          </div>
 
           <div className="mb-8">
             <h3 className="font-semibold mb-2 text-lg">Description</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-              {listing.description || "No description provided."}
+              {listing.description || "No description provided by the seller."}
             </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-3 mb-10">
-            <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg">
+          <div className="space-y-3">
+            <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
               💬 Chat with Seller on WhatsApp
             </button>
-            <Link href={`/escrow/${listing.id}`} className="w-full border-2 border-[#1E3A5F] text-[#1E3A5F] font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors text-center block">
+            
+            <Link 
+              href={`/escrow/${listing.id}`} 
+              className="w-full border-2 border-[#1E3A5F] text-[#1E3A5F] font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors text-center block"
+            >
               Pay Securely via Platform (Escrow)
             </Link>
           </div>
@@ -172,8 +187,8 @@ export default function ListingDetail() {
       </div>
 
       {/* Reviews Section */}
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews & Ratings</h2>
+      <div className="mt-14">
+        <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews</h2>
 
         {/* Submit Review Form */}
         {user && (
@@ -181,37 +196,52 @@ export default function ListingDetail() {
             <h3 className="font-semibold mb-4">Leave a Review</h3>
             <form onSubmit={submitReview} className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">Your Rating</label>
-                <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className="border rounded-xl px-4 py-2">
-                  {[5,4,3,2,1].map(n => <option key={n} value={n}>{n} Star{n > 1 ? 's' : ''}</option>)}
+                <label className="block text-sm font-medium mb-1">Rating</label>
+                <select 
+                  value={rating} 
+                  onChange={(e) => setRating(Number(e.target.value))} 
+                  className="border rounded-xl px-4 py-2 w-full max-w-[120px]"
+                >
+                  {[5,4,3,2,1].map(n => (
+                    <option key={n} value={n}>{n} Star{n > 1 ? 's' : ''}</option>
+                  ))}
                 </select>
               </div>
+
               <div>
-                <label className="block text-sm mb-1">Comment (optional)</label>
+                <label className="block text-sm font-medium mb-1">Comment (optional)</label>
                 <textarea 
                   value={comment} 
                   onChange={(e) => setComment(e.target.value)} 
                   className="w-full border rounded-2xl px-4 py-3" 
                   rows={3} 
-                  placeholder="Share your experience with this seller..."
+                  placeholder="Share your experience..."
                 />
               </div>
-              <button type="submit" disabled={submitting} className="bg-[#2E8B57] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70">
+
+              <button 
+                type="submit" 
+                disabled={submitting} 
+                className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70"
+              >
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
-              {reviewMessage && <p className="text-sm text-[#2E8B57]">{reviewMessage}</p>}
+
+              {reviewMessage && <p className="text-sm text-[#2E8B57] mt-2">{reviewMessage}</p>}
             </form>
           </div>
         )}
 
-        {/* List of Reviews */}
+        {/* Reviews List */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
             {reviews.map((review) => (
               <div key={review.id} className="bg-white border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="text-yellow-500">{'★'.repeat(review.rating)}</div>
-                  <span className="text-sm text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
+                  <div className="text-yellow-500 text-lg">{'★'.repeat(review.rating)}</div>
+                  <span className="text-sm text-gray-500">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </span>
                 </div>
                 {review.comment && <p className="text-gray-700">{review.comment}</p>}
               </div>
