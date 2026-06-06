@@ -1,0 +1,91 @@
+'use client';
+
+import Link from 'next/link';
+
+const sampleListings = [
+  {
+    id: 1,
+    title: "iPhone 13 Pro 128GB - Excellent Condition",
+    price: 9500,
+    location: "Sandton, Johannesburg",
+    image: "https://picsum.photos/id/20/400/300",
+    verified: true,
+  },
+  {
+    id: 2,
+    title: "Leather Sofa Set - 3 Seater + 2 Armchairs",
+    price: 6500,
+    location: "Pretoria East",
+    image: "https://picsum.photos/id/1015/400/300",
+    verified: true,
+  },
+  {
+    id: 3,
+    title: "Nike Air Force 1 '07 - Size 9 (Brand New)",
+    price: 1450,
+    location: "Rosebank, Johannesburg",
+    image: "https://picsum.photos/id/106/400/300",
+    verified: false,
+  },
+];
+
+export default function ListingsPage() {
+  const openWhatsApp = (listing: any) => {
+    const message = encodeURIComponent(
+      `Hi, I'm interested in your "${listing.title}" on DirectWA. Is it still available?`
+    );
+    window.open(`https://wa.me/27721234567?text=${message}`, '_blank');
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex justify-between items-end mb-8">
+        <div>
+          <h1 className="text-4xl font-bold text-[#1E3A5F]">Browse Listings</h1>
+          <p className="text-gray-600 mt-1">Discover great deals from verified sellers</p>
+        </div>
+        <Link href="/sell" className="bg-[#2E8B57] text-white px-5 py-2.5 rounded-xl font-semibold hidden md:block">
+          + Sell Item
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {sampleListings.map((listing) => (
+          <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow">
+            <img src={listing.image} alt={listing.title} className="w-full h-48 object-cover" />
+            
+            <div className="p-5">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg pr-2">{listing.title}</h3>
+                {listing.verified && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full whitespace-nowrap">Verified</span>
+                )}
+              </div>
+              
+              <div className="text-2xl font-bold text-[#1E3A5F] mb-4">
+                R{listing.price.toLocaleString()}
+              </div>
+
+              <div className="text-sm text-gray-500 mb-4">{listing.location}</div>
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => openWhatsApp(listing)}
+                  className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm"
+                >
+                  Chat on WhatsApp
+                </button>
+                <Link 
+                  href={`/listings/${listing.id}`}
+                  className="px-4 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50"
+                >
+                  View
+                </Link>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
