@@ -30,6 +30,7 @@ export default function MyListings() {
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
+
         if (data) setListings(data);
       }
       setLoading(false);
@@ -38,20 +39,35 @@ export default function MyListings() {
   }, []);
 
   const updateStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', id);
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: newStatus })
+      .eq('id', id);
+
     if (!error) {
-      setMessage('Status updated');
-      const { data } = await supabase.from('listings').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      setMessage('Status updated successfully');
+      // Refresh listings
+      const { data } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
       if (data) setListings(data);
+    } else {
+      setMessage('Error updating status');
     }
   };
 
   const deleteListing = async (id: string) => {
     if (!confirm('Are you sure you want to delete this listing?')) return;
+
     const { error } = await supabase.from('listings').delete().eq('id', id);
+
     if (!error) {
       setListings(listings.filter(l => l.id !== id));
       setMessage('Listing deleted');
+    } else {
+      setMessage('Error deleting listing');
     }
   };
 
@@ -80,7 +96,11 @@ export default function MyListings() {
         </Link>
       </div>
 
-      {message && <p className="mb-4 text-[#2E8B57]">{message}</p>}
+      {message && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl text-sm">
+          {message}
+        </div>
+      )}
 
       {listings.length === 0 ? (
         <div className="bg-white border rounded-2xl p-12 text-center">
@@ -120,11 +140,16 @@ export default function MyListings() {
                   </td>
                   <td className="p-4">
                     <div className="flex gap-2">
-                      <Link href={`/listings/${listing.id}`} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-100">
+                      <Link 
+                        href={`/listings/${listing.id}`} 
+                        className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-100"
+                      >
                         View
                       </Link>
-                      <button onClick={() => deleteListing(listing.id)} 
-                        className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                      <button 
+                        onClick={() => deleteListing(listing.id)} 
+                        className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                      >
                         Delete
                       </button>
                     </div>
