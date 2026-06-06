@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<'email' | 'phone'>('email');
-  
-  // Email + Password states
+
+  // Email states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,10 +24,7 @@ export default function LoginPage() {
     setLoading(true);
     setMessage('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setMessage(error.message);
@@ -36,15 +34,12 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // Email Signup (for new users)
+  // Email Sign Up
   const handleEmailSignUp = async () => {
     setLoading(true);
     setMessage('');
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signUp({ email, password });
 
     if (error) {
       setMessage(error.message);
@@ -54,7 +49,7 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // Phone OTP - Send code
+  // Phone OTP
   const sendPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -67,7 +62,6 @@ export default function LoginPage() {
     setLoading(false);
   };
 
-  // Phone OTP - Verify
   const verifyPhoneOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -86,16 +80,10 @@ export default function LoginPage() {
 
       {/* Tabs */}
       <div className="flex mb-6 border-b">
-        <button 
-          onClick={() => setActiveTab('email')}
-          className={`flex-1 py-3 font-medium ${activeTab === 'email' ? 'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' : 'text-gray-500'}`}
-        >
+        <button onClick={() => setActiveTab('email')} className={`flex-1 py-3 font-medium ${activeTab === 'email' ? 'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' : 'text-gray-500'}`}>
           Email
         </button>
-        <button 
-          onClick={() => setActiveTab('phone')}
-          className={`flex-1 py-3 font-medium ${activeTab === 'phone' ? 'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' : 'text-gray-500'}`}
-        >
+        <button onClick={() => setActiveTab('phone')} className={`flex-1 py-3 font-medium ${activeTab === 'phone' ? 'border-b-2 border-[#1E3A5F] text-[#1E3A5F]' : 'text-gray-500'}`}>
           Phone
         </button>
       </div>
@@ -106,7 +94,11 @@ export default function LoginPage() {
           <form onSubmit={handleEmailLogin} className="space-y-5">
             <input type="email" placeholder="Email address" className="w-full border rounded-xl px-4 py-3" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <input type="password" placeholder="Password" className="w-full border rounded-xl px-4 py-3" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            
+
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-sm text-[#2E8B57] hover:underline">Forgot password?</Link>
+            </div>
+
             <button type="submit" disabled={loading} className="w-full bg-[#1E3A5F] text-white py-3.5 rounded-xl font-semibold disabled:opacity-70">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
