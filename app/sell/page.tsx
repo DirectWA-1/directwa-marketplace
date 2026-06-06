@@ -6,24 +6,34 @@ import { Upload, X } from 'lucide-react';
 
 export default function SellPage() {
   const [formData, setFormData] = useState({
-    title: '', price: '', location: '', category: 'Electronics', condition: 'Good', description: ''
+    title: '',
+    price: '',
+    location: '',
+    category: 'Electronics',
+    condition: 'Good',
+    description: ''
   });
+
   const [images, setImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // Handle image selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files).slice(0, 5 - images.length);
-      setImages(prev => [...prev, ...newFiles]);
+      const selectedFiles = Array.from(e.target.files);
+      const remainingSlots = 5 - images.length;
+      const filesToAdd = selectedFiles.slice(0, remainingSlots);
+      setImages(prev => [...prev, ...filesToAdd]);
     }
   };
 
+  // Remove selected image
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Improved image upload function
+  // Upload images to Supabase Storage
   const uploadImages = async (files: File[]): Promise<string[]> => {
     const urls: string[] = [];
 
@@ -36,7 +46,7 @@ export default function SellPage() {
         .upload(fileName, file);
 
       if (error) {
-        console.error('Upload error:', error);
+        console.error('Image upload failed:', error);
         continue;
       }
 
@@ -50,6 +60,7 @@ export default function SellPage() {
     return urls;
   };
 
+  // Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -58,7 +69,7 @@ export default function SellPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setMessage('Please log in to create a listing');
+        setMessage('Please log in to create a listing.');
         setLoading(false);
         return;
       }
@@ -69,7 +80,7 @@ export default function SellPage() {
         imageUrls = await uploadImages(images);
       }
 
-      // Save listing with image URLs
+      // Save listing to database
       const { error } = await supabase.from('listings').insert({
         user_id: user.id,
         title: formData.title,
@@ -77,23 +88,21 @@ export default function SellPage() {
         location: formData.location,
         category: formData.category,
         condition: formData.condition,
-        description: formData.description,
+        description: formData.description || null,
         images: imageUrls,
         status: 'active'
       });
 
       if (error) throw error;
 
-      setMessage('✅ Listing published successfully!');
-      // Reset form
-      setFormData({ title: '', price: '', location: '', category: 'Electronics', condition: 'Good', description: '' });
-      setImages([]);
+      setMessage('✅ Listing published successfully! Redirecting...');
 
       setTimeout(() => {
         window.location.href = '/listings';
-      }, 1500);
+      }, 1200);
 
     } catch (err: any) {
+      console.error(err);
       setMessage('Error: ' + err.message);
     } finally {
       setLoading(false);
@@ -108,30 +117,51 @@ export default function SellPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
+        {/* Title */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Item Title *</label>
-          <input type="text" required className="w-full border rounded-xl px-4 py-3" 
-            value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} />
+          <input
+            type="text"
+            required
+            className="w-full border rounded-xl px-4 py-3"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          />
         </div>
 
+        {/* Price & Location */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Price (R) *</label>
-            <input type="number" required className="w-full border rounded-xl px-4 py-3" 
-              value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+            <input
+              type="number"
+              required
+              className="w-full border rounded-xl px-4 py-3"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5">Location *</label>
-            <input type="text" required className="w-full border rounded-xl px-4 py-3" 
-              value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} />
+            <input
+              type="text"
+              required
+              className="w-full border rounded-xl px-4 py-3"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            />
           </div>
         </div>
 
+        {/* Category & Condition */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Category</label>
-            <select className="w-full border rounded-xl px-4 py-3" value={formData.category} 
-              onChange={(e) => setFormData({...formData, category: e.target.value})}>
+            <select
+              className="w-full border rounded-xl px-4 py-3"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            >
               <option>Electronics</option>
               <option>Fashion & Clothing</option>
               <option>Home & Garden</option>
@@ -141,8 +171,11 @@ export default function SellPage() {
           </div>
           <div>
             <label className="block text-sm font-medium mb-1.5">Condition</label>
-            <select className="w-full border rounded-xl px-4 py-3" value={formData.condition} 
-              onChange={(e) => setFormData({...formData, condition: e.target.value})}>
+            <select
+              className="w-full border rounded-xl px-4 py-3"
+              value={formData.condition}
+              onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+            >
               <option>New</option>
               <option>Like New</option>
               <option>Good</option>
@@ -151,30 +184,50 @@ export default function SellPage() {
           </div>
         </div>
 
+        {/* Description */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Description</label>
-          <textarea rows={4} className="w-full border rounded-2xl px-4 py-3" 
-            value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+          <textarea
+            rows={4}
+            className="w-full border rounded-2xl px-4 py-3"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
         </div>
 
         {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
           <div className="border-2 border-dashed rounded-2xl p-6 text-center">
-            <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" />
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+              id="images"
+            />
             <label htmlFor="images" className="cursor-pointer flex flex-col items-center">
               <Upload className="w-8 h-8 text-gray-400 mb-2" />
               <span className="text-sm text-gray-600">Click to upload photos</span>
             </label>
           </div>
 
+          {/* Image Previews */}
           {images.length > 0 && (
             <div className="flex flex-wrap gap-3 mt-4">
               {images.map((file, index) => (
                 <div key={index} className="relative w-20 h-20 border rounded-xl overflow-hidden">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => removeImage(index)} 
-                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow">
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow"
+                  >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
@@ -183,12 +236,19 @@ export default function SellPage() {
           )}
         </div>
 
-        <button type="submit" disabled={loading} 
-          className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-xl text-lg disabled:opacity-70">
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-xl text-lg disabled:opacity-70"
+        >
           {loading ? 'Publishing...' : 'Publish Listing'}
         </button>
 
-        {message && <p className="text-center text-[#2E8B57] mt-4">{message}</p>}
+        {/* Message */}
+        {message && (
+          <p className="text-center text-[#2E8B57] mt-4">{message}</p>
+        )}
       </form>
     </div>
   );
