@@ -11,12 +11,17 @@ interface Listing {
   location: string;
   category: string;
   images: string[];
-  created_at: string;
+}
+
+interface Review {
+  listing_id: string;
+  rating: number;
 }
 
 export default function ListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
@@ -29,21 +34,44 @@ export default function ListingsPage() {
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
 
   useEffect(() => {
-    const fetchListings = async () => {
-      const { data } = await supabase
+    const fetchData = async () => {
+      setLoading(true);
+
+      // Fetch active listings
+      const { data: listingsData } = await supabase
         .from('listings')
         .select('*')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
-      
-      if (data) {
-        setListings(data);
-        setFilteredListings(data);
+
+      if (listingsData) {
+        setListings(listingsData);
+        setFilteredListings(listingsData);
+
+        // Fetch reviews for these listings
+        const listingIds = listingsData.map(l => l.id);
+        if (listingIds.length > 0) {
+          const { data: reviewsData } = await supabase
+            .from('reviews')
+            .select('listing_id, rating')
+            .in('listing_id', listingIds);
+
+          if (reviewsData) setReviews(reviewsData);
+        }
       }
       setLoading(false);
     };
-    fetchListings();
+
+    fetchData();
   }, []);
+
+  // Calculate average rating for a listing
+  const getAverageRating = (listingId: string) => {
+    const listingReviews = reviews.filter(r => r.listing_id === listingId);
+    if (listingReviews.length === 0) return 0;
+    const avg = listingReviews.reduce((sum, r) => sum + r.rating, 0) / listingReviews.length;
+    return Math.round(avg * 10) / 10;
+  };
 
   // Apply filters + sorting
   useEffect(() => {
@@ -61,7 +89,7 @@ export default function ListingsPage() {
     // Sorting
     switch (sortOption) {
       case 'newest':
-        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        result.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
         break;
       case 'price-low':
         result.sort((a, b) => a.price - b.price);
@@ -76,14 +104,6 @@ export default function ListingsPage() {
 
     setFilteredListings(result);
   }, [searchTerm, selectedCategory, minPrice, maxPrice, sortOption, listings]);
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSelectedCategory('');
-    setMinPrice('');
-    setMaxPrice('');
-    setSortOption('newest');
-  };
 
   const openWhatsApp = (listing: Listing) => {
     const message = encodeURIComponent(`Hi, I'm interested in your "${listing.title}" on DirectWA.`);
@@ -108,27 +128,19 @@ export default function ListingsPage() {
       <div className="bg-white border rounded-2xl p-6 mb-8">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="md:col-span-2">
-            <input
-              type="text"
-              placeholder="Search listings..."
-              className="w-full border rounded-xl px-4 py-3"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <input type="text" placeholder="Search listings..." className="w-full border rounded-xl px-4 py-3"
+              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
           </div>
-
           <div>
             <select className="w-full border rounded-xl px-4 py-3" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
               <option value="">All Categories</option>
               {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
-
           <div className="flex gap-2">
             <input type="number" placeholder="Min R" className="w-full border rounded-xl px-4 py-3" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
             <input type="number" placeholder="Max R" className="w-full border rounded-xl px-4 py-3" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
           </div>
-
           <div className="flex gap-2">
             <select className="w-full border rounded-xl px-4 py-3" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
               <option value="newest">Newest First</option>
@@ -136,13 +148,8 @@ export default function ListingsPage() {
               <option value="price-high">Price: High → Low</option>
               <option value="title-az">Title: A → Z</option>
             </select>
-
-            <button 
-              onClick={clearFilters}
-              className="px-4 py-3 text-sm border rounded-xl hover:bg-gray-50 whitespace-nowrap"
-            >
-              Clear
-            </button>
+            <button onClick={() => { setSearchTerm(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setSortOption('newest'); }}
+              className="px-4 py-3 text-sm border rounded-xl hover:bg-gray-50">Clear</button>
           </div>
         </div>
       </div>
@@ -157,37 +164,53 @@ export default function ListingsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredListings.map((listing) => (
-            <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
-              <div className="relative">
-                <img 
-                  src={listing.images?.[0] || 'https://picsum.photos/id/20/400/300'} 
-                  alt={listing.title} 
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
-                />
-                {listing.category && (
-                  <div className="absolute top-3 left-3 bg-white/90 text-[#1E3A5F] text-xs font-medium px-3 py-1 rounded-full">
-                    {listing.category}
+          {filteredListings.map((listing) => {
+            const avgRating = getAverageRating(listing.id);
+            return (
+              <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
+                <div className="relative">
+                  <img 
+                    src={listing.images?.[0] || 'https://picsum.photos/id/20/400/300'} 
+                    alt={listing.title} 
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
+                  />
+                  {listing.category && (
+                    <div className="absolute top-3 left-3 bg-white/90 text-[#1E3A5F] text-xs font-medium px-3 py-1 rounded-full">
+                      {listing.category}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  <h3 className="font-semibold text-lg mb-2 line-clamp-2">{listing.title}</h3>
+
+                  {/* Average Rating */}
+                  {avgRating > 0 && (
+                    <div className="flex items-center gap-1 mb-2">
+                      <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
+                      <span className="text-sm text-gray-600">{avgRating}</span>
+                    </div>
+                  )}
+
+                  <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
+                    R{listing.price.toLocaleString()}
                   </div>
-                )}
-              </div>
-              <div className="p-5">
-                <h3 className="font-semibold text-lg mb-2 line-clamp-2">{listing.title}</h3>
-                <div className="text-2xl font-bold text-[#1E3A5F] mb-3">R{listing.price.toLocaleString()}</div>
-                <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
-                <div className="flex gap-2">
-                  <button onClick={() => openWhatsApp(listing)} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm">
-                    Chat on WhatsApp
-                  </button>
-                  <Link href={`/listings/${listing.id}`} className="px-5 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50">
-                    View
-                  </Link>
+                  <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => openWhatsApp(listing)} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm">
+                      Chat on WhatsApp
+                    </button>
+                    <Link href={`/listings/${listing.id}`} className="px-5 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50">
+                      View
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
-} 
+}
