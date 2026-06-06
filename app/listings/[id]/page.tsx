@@ -16,12 +16,16 @@ interface Listing {
   images: string[];
 }
 
-interface Review {
+interface Listing {
   id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-  reviewer_id: string;
+  title: string;
+  price: number;
+  location: string;
+  description: string;
+  category: string;
+  condition: string;
+  images: string[];
+  user_id: string;   // ← Add this line
 }
 
 export default function ListingDetail() {
