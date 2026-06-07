@@ -22,6 +22,7 @@ interface Review {
   rating: number;
   comment: string;
   created_at: string;
+  reviewer_id: string;
 }
 
 export default function ListingDetail() {
@@ -34,9 +35,24 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
 
+  // Review form
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState('');
+  const [user, setUser] = useState<any>(null);
+
   useEffect(() => {
-    if (id) fetchData();
+    if (id) {
+      fetchData();
+      getCurrentUser();
+    }
   }, [id]);
+
+  const getCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -65,7 +81,7 @@ export default function ListingDetail() {
     setLoading(false);
   };
 
-  // ✅ Add to Cart with Quantity Support
+  // Add to Cart with Quantity
   const addToCart = () => {
     if (!listing) return;
 
@@ -88,6 +104,33 @@ export default function ListingDetail() {
     alert('Added to cart!');
   };
 
+  // Submit Review
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !listing) return;
+
+    setSubmitting(true);
+    setReviewMessage('');
+
+    const { error } = await supabase.from('reviews').insert({
+      listing_id: listing.id,
+      reviewer_id: user.id,
+      seller_id: listing.user_id,
+      rating,
+      comment: comment.trim() || null,
+    });
+
+    if (error) {
+      setReviewMessage('Error: ' + error.message);
+    } else {
+      setReviewMessage('Thank you! Your review was submitted.');
+      setComment('');
+      setRating(5);
+      fetchData();
+    }
+    setSubmitting(false);
+  };
+
   if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
 
@@ -105,14 +148,9 @@ export default function ListingDetail() {
         {/* Image Gallery */}
         <div>
           <div className="border rounded-2xl overflow-hidden mb-4 aspect-[4/3]">
-            <img 
-              src={images[selectedImage]} 
-              alt={listing.title}
-              className="w-full h-full object-cover"
-            />
+            <img src={images[selectedImage]} alt={listing.title} className="w-full h-full object-cover" />
           </div>
 
-          {/* Thumbnails */}
           {images.length > 1 && (
             <div className="flex gap-3 overflow-x-auto pb-2">
               {images.map((img, index) => (
@@ -145,10 +183,7 @@ export default function ListingDetail() {
             </div>
           )}
 
-          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">
-            R{listing.price.toLocaleString()}
-          </div>
-
+          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-6 text-sm text-gray-600">📍 {listing.location}</div>
 
           <div className="mb-8">
@@ -159,13 +194,9 @@ export default function ListingDetail() {
           </div>
 
           <div className="space-y-3">
-            <button 
-              onClick={addToCart}
-              className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg"
-            >
+            <button onClick={addToCart} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg">
               Add to Cart
             </button>
-            
             <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg">
               Chat with Seller on WhatsApp
             </button>
@@ -176,7 +207,53 @@ export default function ListingDetail() {
       {/* Reviews Section */}
       <div className="mt-14">
         <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews</h2>
-        
+
+        {/* Review Form */}
+        {user && (
+          <div className="bg-white border rounded-2xl p-6 mb-8">
+            <h3 className="font-semibold mb-4">Leave a Review</h3>
+            <form onSubmit={submitReview} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium mb-2">Your Rating</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`text-3xl transition-colors ${star <= rating ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Comment (optional)</label>
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full border rounded-2xl px-4 py-3"
+                  rows={3}
+                  placeholder="Share your experience..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70"
+              >
+                {submitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+
+              {reviewMessage && <p className="text-sm text-[#2E8B57]">{reviewMessage}</p>}
+            </form>
+          </div>
+        )}
+
+        {/* Existing Reviews */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
             {reviews.map((review) => (
@@ -190,9 +267,9 @@ export default function ListingDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No reviews yet.</p>
+          <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
         )}
       </div>
     </div>
   );
-} 
+}
