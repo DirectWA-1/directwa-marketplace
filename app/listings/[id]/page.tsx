@@ -65,24 +65,27 @@ export default function ListingDetail() {
     setLoading(false);
   };
 
+  // ✅ Add to Cart with Quantity Support
   const addToCart = () => {
     if (!listing) return;
 
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const exists = cart.find((item: any) => item.id === listing.id);
+    const existingItem = cart.find((item: any) => item.id === listing.id);
 
-    if (!exists) {
+    if (existingItem) {
+      existingItem.quantity = (existingItem.quantity || 1) + 1;
+    } else {
       cart.push({
         id: listing.id,
         title: listing.title,
         price: listing.price,
         image: listing.images?.[0] || '',
+        quantity: 1,
       });
-      localStorage.setItem('cart', JSON.stringify(cart));
-      alert('Added to cart!');
-    } else {
-      alert('Item is already in your cart');
     }
+
+    localStorage.setItem('cart', JSON.stringify(cart));
+    alert('Added to cart!');
   };
 
   if (loading) return <div className="p-8 text-center">Loading...</div>;
@@ -192,4 +195,4 @@ export default function ListingDetail() {
       </div>
     </div>
   );
-}
+} 
