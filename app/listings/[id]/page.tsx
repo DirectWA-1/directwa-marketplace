@@ -97,7 +97,6 @@ export default function ListingDetail() {
     if (error) {
       setReviewMessage('Error: ' + error.message);
     } else {
-      // ✅ Plausible Analytics Event
       if (typeof window !== "undefined" && (window as any).plausible) {
         (window as any).plausible("review_submitted", {
           props: {
@@ -237,4 +236,29 @@ export default function ListingDetail() {
       </div>
     </div>
   );
+}
+
+// ✅ Fixed generateMetadata
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const { data: listing } = await supabase
+    .from('listings')
+    .select('title, price, location, category, description, images')
+    .eq('id', params.id)
+    .single();
+
+  if (!listing) {
+    return {
+      title: "Listing Not Found | DirectWA",
+    };
+  }
+
+  return {
+    title: `${listing.title} - R${listing.price} | DirectWA`,
+    description: `${listing.title} for R${listing.price} in ${listing.location}. ${listing.description?.slice(0, 140) || ''}`,
+    openGraph: {
+      title: `${listing.title} - R${listing.price}`,
+      description: `${listing.title} available in ${listing.location} for R${listing.price}. Contact the seller directly on WhatsApp.`,
+      images: listing.images?.[0] ? [{ url: listing.images[0] }] : [],
+    },
+  };
 }
