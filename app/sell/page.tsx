@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Upload, X, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface FormData {
   title: string;
@@ -25,7 +26,7 @@ export default function SellPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // ✅ Check if user has completed their seller profile
+  // Check if user has completed seller profile
   useEffect(() => {
     const checkProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -42,7 +43,6 @@ export default function SellPage() {
         .single();
 
       if (!profile || !profile.full_name) {
-        // Redirect to profile setup if name is missing
         router.push('/seller/setup');
         return;
       }
@@ -56,8 +56,6 @@ export default function SellPage() {
   if (checkingProfile) {
     return <div className="p-8 text-center">Checking your seller profile...</div>;
   }
-
-  // ... (rest of your existing form logic stays the same)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -82,15 +80,14 @@ export default function SellPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        alert('Please log in');
+        toast.error('Please log in to create a listing');
         setLoading(false);
         return;
       }
 
-      // Upload images (your existing compression + upload logic)
+      // Upload images
       let imageUrls: string[] = [];
       for (const file of images) {
-        // You can keep your existing compressImage + upload logic here
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
@@ -120,11 +117,11 @@ export default function SellPage() {
 
       if (error) throw error;
 
-      setSuccess(true);
-      setTimeout(() => router.push('/listings'), 1800);
+      toast.success('Listing published successfully!');
+      setTimeout(() => router.push('/listings'), 1500);
 
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      toast.error(err.message || 'Failed to publish listing');
     } finally {
       setLoading(false);
     }
@@ -148,7 +145,6 @@ export default function SellPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
-        {/* Form fields remain the same */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Item Title *</label>
           <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" placeholder="e.g. iPhone 14 Pro Max" required />
