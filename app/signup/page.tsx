@@ -5,32 +5,43 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
       });
 
       if (error) throw error;
 
-      // Successful login - redirect to homepage or previous page
-      router.push('/listings');
-      router.refresh();
-
+      // Success - redirect to login or show success message
+      router.push('/login?message=Check your email to confirm your account');
+      
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -43,8 +54,8 @@ export default function LoginPage() {
           <Link href="/" className="text-3xl font-bold text-[#1E3A5F]">
             DirectWA
           </Link>
-          <h1 className="text-2xl font-semibold mt-6 mb-2">Welcome back</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <h1 className="text-2xl font-semibold mt-6 mb-2">Create your account</h1>
+          <p className="text-gray-600">Join DirectWA and start buying & selling</p>
         </div>
 
         <div className="bg-white p-8 rounded-2xl border">
@@ -54,7 +65,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleSignup} className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-1.5">Email Address</label>
               <input
@@ -77,28 +88,35 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full border rounded-xl px-4 py-3"
+                placeholder="••••••••"
+                required
+              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-3.5 rounded-xl transition-colors"
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-3.5 rounded-xl transition-colors mt-2"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
           </form>
-
-          <div className="mt-6 text-center text-sm">
-            <Link href="/forgot-password" className="text-[#2E8B57] hover:underline">
-              Forgot your password?
-            </Link>
-          </div>
         </div>
 
         <p className="text-center mt-6 text-sm text-gray-600">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-[#2E8B57] font-medium hover:underline">
-            Create one
+          Already have an account?{' '}
+          <Link href="/login" className="text-[#2E8B57] font-medium hover:underline">
+            Sign in
           </Link>
         </p>
       </div>
