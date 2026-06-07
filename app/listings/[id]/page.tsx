@@ -24,11 +24,6 @@ interface Review {
   created_at: string;
 }
 
-interface SellerInfo {
-  id: string;
-  email: string;
-}
-
 export default function ListingDetail() {
   const params = useParams();
   const id = params.id as string;
@@ -36,7 +31,6 @@ export default function ListingDetail() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [averageRating, setAverageRating] = useState(0);
-  const [seller, setSeller] = useState<SellerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
 
@@ -62,27 +56,14 @@ export default function ListingDetail() {
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch listing
     const { data: listingData } = await supabase
       .from('listings')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (listingData) {
-      setListing(listingData);
+    if (listingData) setListing(listingData);
 
-      // Fetch seller info
-      const { data: sellerData } = await supabase
-        .from('auth.users') // Note: This may need adjustment based on your Supabase setup
-        .select('id, email')
-        .eq('id', listingData.user_id)
-        .single();
-
-      if (sellerData) setSeller(sellerData);
-    }
-
-    // Fetch reviews
     const { data: reviewData } = await supabase
       .from('reviews')
       .select('*')
@@ -96,11 +77,9 @@ export default function ListingDetail() {
         setAverageRating(Math.round(avg * 10) / 10);
       }
     }
-
     setLoading(false);
   };
 
-  // Add to Cart
   const addToCart = () => {
     if (!listing) return;
 
@@ -123,7 +102,6 @@ export default function ListingDetail() {
     alert('Added to cart!');
   };
 
-  // Submit Review
   const submitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !listing) return;
@@ -203,20 +181,18 @@ export default function ListingDetail() {
           )}
 
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
-          <div className="mb-6 text-sm text-gray-600">📍 {listing.location}</div>
+          <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          {/* Seller Info */}
-          {seller && (
-            <div className="mb-6">
-              <p className="text-sm text-gray-500">Sold by</p>
-              <Link 
-                href={`/seller/${listing.user_id}`} 
-                className="text-[#2E8B57] hover:underline font-medium"
-              >
-                {seller.email}
-              </Link>
-            </div>
-          )}
+          {/* Seller Info - Now Visible and Clickable */}
+          <div className="mb-6">
+            <p className="text-sm text-gray-500 mb-1">Sold by</p>
+            <Link 
+              href={`/seller/${listing.user_id}`} 
+              className="text-[#2E8B57] hover:underline font-medium text-lg"
+            >
+              View Seller Profile →
+            </Link>
+          </div>
 
           <div className="mb-8">
             <h3 className="font-semibold mb-2">Description</h3>
@@ -297,7 +273,7 @@ export default function ListingDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No reviews yet.</p>
+          <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
         )}
       </div>
     </div>
