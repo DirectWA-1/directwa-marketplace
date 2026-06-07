@@ -35,15 +35,15 @@ export default function ListingsPage() {
 
   // Category-based placeholder images
   const getPlaceholderImage = (category: string) => {
-    const placeholders: { [key: string]: string } = {
-      'Electronics': 'https://picsum.photos/id/20/400/300',
-      'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300',
-      'Home & Garden': 'https://picsum.photos/id/160/400/300',
-      'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',
-      'Other': 'https://picsum.photos/id/251/400/300',
-    };
-    return placeholders[category] || 'https://picsum.photos/id/20/400/300';
+  const placeholders: { [key: string]: string } = {
+    'Electronics': 'https://picsum.photos/id/20/400/300',        // Laptop / Tech
+    'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300', // Fashion / Clothing
+    'Home & Garden': 'https://picsum.photos/id/160/400/300',      // Home / Interior
+    'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',   // Car / Vehicle
+    'Other': 'https://picsum.photos/id/251/400/300',              // Nice generic
   };
+  return placeholders[category] || 'https://picsum.photos/id/20/400/300';
+};
 
   useEffect(() => {
     const fetchData = async () => {
