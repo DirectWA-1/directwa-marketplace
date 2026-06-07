@@ -55,18 +55,16 @@ export default function SellPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setMessage('Please log in to create a listing');
+        setMessage('Please log in');
         setLoading(false);
         return;
       }
 
-      // Upload images
       let imageUrls: string[] = [];
       if (images.length > 0) {
         imageUrls = await uploadImages(images);
       }
 
-      // Save listing with image URLs
       const { error } = await supabase.from('listings').insert({
         user_id: user.id,
         title: formData.title,
@@ -75,7 +73,7 @@ export default function SellPage() {
         category: formData.category,
         condition: formData.condition,
         description: formData.description || null,
-        images: imageUrls,           // ← This must be here
+        images: imageUrls,
         status: 'active'
       });
 
