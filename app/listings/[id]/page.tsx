@@ -22,7 +22,11 @@ interface Review {
   rating: number;
   comment: string;
   created_at: string;
-  reviewer_id: string;
+}
+
+interface SellerInfo {
+  id: string;
+  email: string;
 }
 
 export default function ListingDetail() {
@@ -32,10 +36,11 @@ export default function ListingDetail() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [averageRating, setAverageRating] = useState(0);
+  const [seller, setSeller] = useState<SellerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  // Review form
+  // Review form states
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -57,14 +62,27 @@ export default function ListingDetail() {
   const fetchData = async () => {
     setLoading(true);
 
+    // Fetch listing
     const { data: listingData } = await supabase
       .from('listings')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (listingData) setListing(listingData);
+    if (listingData) {
+      setListing(listingData);
 
+      // Fetch seller info
+      const { data: sellerData } = await supabase
+        .from('auth.users') // Note: This may need adjustment based on your Supabase setup
+        .select('id, email')
+        .eq('id', listingData.user_id)
+        .single();
+
+      if (sellerData) setSeller(sellerData);
+    }
+
+    // Fetch reviews
     const { data: reviewData } = await supabase
       .from('reviews')
       .select('*')
@@ -78,10 +96,11 @@ export default function ListingDetail() {
         setAverageRating(Math.round(avg * 10) / 10);
       }
     }
+
     setLoading(false);
   };
 
-  // Add to Cart with Quantity
+  // Add to Cart
   const addToCart = () => {
     if (!listing) return;
 
@@ -186,6 +205,19 @@ export default function ListingDetail() {
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-6 text-sm text-gray-600">📍 {listing.location}</div>
 
+          {/* Seller Info */}
+          {seller && (
+            <div className="mb-6">
+              <p className="text-sm text-gray-500">Sold by</p>
+              <Link 
+                href={`/seller/${listing.user_id}`} 
+                className="text-[#2E8B57] hover:underline font-medium"
+              >
+                {seller.email}
+              </Link>
+            </div>
+          )}
+
           <div className="mb-8">
             <h3 className="font-semibold mb-2">Description</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
@@ -208,7 +240,6 @@ export default function ListingDetail() {
       <div className="mt-14">
         <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews</h2>
 
-        {/* Review Form */}
         {user && (
           <div className="bg-white border rounded-2xl p-6 mb-8">
             <h3 className="font-semibold mb-4">Leave a Review</h3>
@@ -253,7 +284,6 @@ export default function ListingDetail() {
           </div>
         )}
 
-        {/* Existing Reviews */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
             {reviews.map((review) => (
@@ -267,7 +297,7 @@ export default function ListingDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
+          <p className="text-gray-500">No reviews yet.</p>
         )}
       </div>
     </div>
