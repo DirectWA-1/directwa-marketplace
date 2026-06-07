@@ -162,13 +162,15 @@ export default function ListingsPage() {
           {filteredListings.map((listing) => {
             const avgRating = getAverageRating(listing.id);
 
-            // ✅ Placeholder logic directly in the image
-            const displayImage = listing.images?.[0] || 
-              (listing.category === 'Electronics' ? 'https://picsum.photos/id/20/400/300' :
-               listing.category === 'Fashion & Clothing' ? 'https://picsum.photos/id/1005/400/300' :
-               listing.category === 'Home & Garden' ? 'https://picsum.photos/id/160/400/300' :
-               listing.category === 'Vehicles & Parts' ? 'https://picsum.photos/id/201/400/300' :
-               'https://picsum.photos/id/251/400/300');
+            // Simple and reliable placeholder logic
+            let displayImage = listing.images?.[0];
+            if (!displayImage) {
+              if (listing.category === 'Electronics') displayImage = 'https://picsum.photos/id/20/400/300';
+              else if (listing.category === 'Fashion & Clothing') displayImage = 'https://picsum.photos/id/1005/400/300';
+              else if (listing.category === 'Home & Garden') displayImage = 'https://picsum.photos/id/160/400/300';
+              else if (listing.category === 'Vehicles & Parts') displayImage = 'https://picsum.photos/id/201/400/300';
+              else displayImage = 'https://picsum.photos/id/251/400/300';
+            }
 
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
