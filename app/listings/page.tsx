@@ -33,18 +33,6 @@ export default function ListingsPage() {
 
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
 
-  // ✅ Correct placeholder function
-  const getPlaceholderImage = (category: string) => {
-    const placeholders: { [key: string]: string } = {
-      'Electronics': 'https://picsum.photos/id/20/400/300',
-      'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300',
-      'Home & Garden': 'https://picsum.photos/id/160/400/300',
-      'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',
-      'Other': 'https://picsum.photos/id/251/400/300',
-    };
-    return placeholders[category] || 'https://picsum.photos/id/20/400/300';
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -173,7 +161,14 @@ export default function ListingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredListings.map((listing) => {
             const avgRating = getAverageRating(listing.id);
-            const displayImage = listing.images?.[0] || getPlaceholderImage(listing.category);
+
+            // ✅ Placeholder logic directly in the image
+            const displayImage = listing.images?.[0] || 
+              (listing.category === 'Electronics' ? 'https://picsum.photos/id/20/400/300' :
+               listing.category === 'Fashion & Clothing' ? 'https://picsum.photos/id/1005/400/300' :
+               listing.category === 'Home & Garden' ? 'https://picsum.photos/id/160/400/300' :
+               listing.category === 'Vehicles & Parts' ? 'https://picsum.photos/id/201/400/300' :
+               'https://picsum.photos/id/251/400/300');
 
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
