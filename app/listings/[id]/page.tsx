@@ -25,6 +25,44 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default function ListingDetailPage() {
-  return <ListingDetailClient />;
+export default async function ListingDetailPage({ params }: { params: { id: string } }) {
+  const { data: listing } = await supabase
+    .from('listings')
+    .select('title, price, location, category, description, images, condition')
+    .eq('id', params.id)
+    .single();
+
+  // Structured Data (JSON-LD)
+  const structuredData = listing
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: listing.title,
+        description: listing.description || "",
+        image: listing.images?.[0] || "",
+        offers: {
+          "@type": "Offer",
+          url: `https://directwa-marketplace-n85e.vercel.app/listings/${params.id}`,
+          priceCurrency: "ZAR",
+          price: listing.price,
+          availability: "https://schema.org/InStock",
+          seller: {
+            "@type": "Organization",
+            name: "DirectWA Seller",
+          },
+        },
+      }
+    : null;
+
+  return (
+    <>
+      {structuredData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+      )}
+      <ListingDetailClient />
+    </>
+  );
 }
