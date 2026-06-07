@@ -50,10 +50,8 @@ export default function SellPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Clear error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
@@ -102,7 +100,7 @@ export default function SellPage() {
         return;
       }
 
-      // Upload images
+      // Upload images to Supabase Storage
       let imageUrls: string[] = [];
       if (images.length > 0) {
         for (const file of images) {
@@ -139,7 +137,6 @@ export default function SellPage() {
 
       setSuccess(true);
       
-      // Redirect after success
       setTimeout(() => {
         window.location.href = '/listings';
       }, 1800);
@@ -251,32 +248,54 @@ export default function SellPage() {
           />
         </div>
 
-        {/* Image Upload */}
+        {/* Improved Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
+          
           <div className="border-2 border-dashed rounded-2xl p-6 text-center hover:border-[#2E8B57] transition-colors">
-            <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" />
-            <label htmlFor="images" className="cursor-pointer flex flex-col items-center">
+            <input 
+              type="file" 
+              multiple 
+              accept="image/*" 
+              onChange={handleImageChange} 
+              className="hidden" 
+              id="images" 
+              disabled={images.length >= 5}
+            />
+            <label 
+              htmlFor="images" 
+              className={`cursor-pointer flex flex-col items-center ${images.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
               <Upload className="w-8 h-8 text-gray-400 mb-2" />
-              <span className="text-sm text-gray-600">Click to upload photos</span>
-              <span className="text-xs text-gray-500 mt-1">PNG, JPG up to 5 images</span>
+              <span className="text-sm text-gray-600">
+                {images.length >= 5 ? 'Maximum 5 images reached' : 'Click to upload photos'}
+              </span>
+              <span className="text-xs text-gray-500 mt-1">PNG, JPG • Max 5 images</span>
             </label>
           </div>
 
+          {/* Image Previews */}
           {images.length > 0 && (
-            <div className="flex flex-wrap gap-3 mt-4">
-              {images.map((file, index) => (
-                <div key={index} className="relative w-20 h-20 border rounded-xl overflow-hidden group">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow opacity-80 group-hover:opacity-100"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-3">
+                {images.map((file, index) => (
+                  <div key={index} className="relative w-20 h-20 border rounded-xl overflow-hidden group">
+                    <img 
+                      src={URL.createObjectURL(file)} 
+                      alt={`Preview ${index + 1}`} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-white/90 rounded-full p-1 shadow opacity-80 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-3.5 h-3.5 text-red-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{images.length}/5 images selected</p>
             </div>
           )}
         </div>
