@@ -1,56 +1,45 @@
 import Link from 'next/link';
 
-export function Footer() {
+export default function Footer() {
   return (
-    <footer className="bg-[#0F1C2E] text-gray-400 py-12 mt-16">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="grid md:grid-cols-4 gap-y-10">
-          {/* Brand */}
+    <footer className="bg-white border-t mt-16">
+      <div className="max-w-7xl mx-auto px-4 py-10 text-sm text-gray-600">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-[#2E8B57] rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold">D</span>
-              </div>
-              <span className="font-bold text-xl text-white">DirectWA</span>
-            </div>
-            <p className="text-sm">South Africa’s hybrid marketplace.<br />Direct deals. WhatsApp simple.</p>
+            <h4 className="font-semibold text-[#1E3A5F] mb-3">DirectWA</h4>
+            <p className="text-xs leading-relaxed">
+              South Africa’s simple WhatsApp-first marketplace.
+            </p>
           </div>
 
-          {/* Marketplace */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Marketplace</h4>
-            <div className="space-y-2 text-sm">
-              <div><Link href="/listings">Browse Listings</Link></div>
-              <div><Link href="/sell">Sell an Item</Link></div>
-              <div><Link href="/my-listings">My Listings</Link></div>
+            <h4 className="font-semibold text-[#1E3A5F] mb-3">Platform</h4>
+            <div className="space-y-1.5">
+              <Link href="/listings" className="block hover:text-[#1E3A5F]">Browse Listings</Link>
+              <Link href="/sell" className="block hover:text-[#1E3A5F]">Start Selling</Link>
             </div>
           </div>
 
-          {/* Company */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Company</h4>
-            <div className="space-y-2 text-sm">
-              <div><Link href="/about">About Us</Link></div>
-              <div><Link href="/how-it-works">How it Works</Link></div>
-              <div><Link href="/escrow-protection">Escrow Protection</Link></div>
-              <div>Contact</div>
+            <h4 className="font-semibold text-[#1E3A5F] mb-3">Company</h4>
+            <div className="space-y-1.5">
+              <Link href="/about" className="block hover:text-[#1E3A5F]">About Us</Link>
+              <Link href="/how-it-works" className="block hover:text-[#1E3A5F]">How it Works</Link>
             </div>
           </div>
 
-          {/* Legal */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Legal</h4>
-            <div className="space-y-2 text-sm">
-              <div><Link href="/terms">Terms of Service</Link></div>
-              <div><Link href="/privacy">Privacy Policy</Link></div>
-              <div><Link href="/escrow-protection">Escrow Protection</Link></div>
+            <h4 className="font-semibold text-[#1E3A5F] mb-3">Legal</h4>
+            <div className="space-y-1.5">
+              <Link href="/terms" className="block hover:text-[#1E3A5F]">Terms of Service</Link>
+              <Link href="/privacy" className="block hover:text-[#1E3A5F]">Privacy Policy</Link>
+              <Link href="/escrow-protection" className="block hover:text-[#1E3A5F]">Escrow Protection</Link>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-white/10 mt-12 pt-8 text-sm flex flex-col md:flex-row justify-between items-center">
-          <div>© {new Date().getFullYear()} DirectWA. All rights reserved.</div>
-          <div className="mt-4 md:mt-0">Built for South Africa • WhatsApp-first</div>
+        <div className="mt-10 pt-6 border-t text-xs text-center text-gray-500">
+          © {new Date().getFullYear()} DirectWA. All rights reserved.
         </div>
       </div>
     </footer>
