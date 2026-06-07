@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
-// Interfaces (must be at the top)
 interface Listing {
   id: string;
   title: string;
@@ -57,20 +56,14 @@ export default function ListingDetail() {
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch listing
-    const { data: listingData, error: listingError } = await supabase
+    const { data: listingData } = await supabase
       .from('listings')
       .select('*')
       .eq('id', id)
       .single();
 
-    if (listingError) {
-      console.error('Error fetching listing:', listingError);
-    } else if (listingData) {
-      setListing(listingData);
-    }
+    if (listingData) setListing(listingData);
 
-    // Fetch reviews
     const { data: reviewData } = await supabase
       .from('reviews')
       .select('*')
@@ -109,12 +102,12 @@ export default function ListingDetail() {
       setReviewMessage('Thank you! Your review was submitted.');
       setComment('');
       setRating(5);
-      fetchData(); // Refresh reviews and average rating
+      fetchData();
     }
     setSubmitting(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading listing...</div>;
+  if (loading) return <div className="p-8 text-center">Loading...</div>;
   if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
 
   return (
@@ -124,7 +117,6 @@ export default function ListingDetail() {
       </Link>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {/* Image Section */}
         <div>
           <img 
             src={listing.images?.[0] || 'https://picsum.photos/id/20/800/600'} 
@@ -133,20 +125,14 @@ export default function ListingDetail() {
           />
         </div>
 
-        {/* Details Section */}
         <div>
           <div className="flex gap-2 mb-3">
-            {listing.category && (
-              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>
-            )}
-            {listing.condition && (
-              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>
-            )}
+            {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
+            {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
           </div>
 
           <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">{listing.title}</h1>
 
-          {/* Average Rating */}
           {averageRating > 0 && (
             <div className="flex items-center gap-2 mb-4">
               <div className="text-yellow-500 text-2xl">{'★'.repeat(Math.round(averageRating))}</div>
@@ -155,31 +141,21 @@ export default function ListingDetail() {
             </div>
           )}
 
-          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">
-            R{listing.price.toLocaleString()}
-          </div>
-
-          <div className="mb-6 text-sm text-gray-600 flex items-center gap-2">
-            📍 {listing.location}
-          </div>
+          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
+          <div className="mb-6 text-sm text-gray-600">📍 {listing.location}</div>
 
           <div className="mb-8">
             <h3 className="font-semibold mb-2 text-lg">Description</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-              {listing.description || "No description provided by the seller."}
+              {listing.description || "No description provided."}
             </p>
           </div>
 
-          {/* Action Buttons */}
           <div className="space-y-3">
-            <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
+            <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg">
               💬 Chat with Seller on WhatsApp
             </button>
-            
-            <Link 
-              href={`/escrow/${listing.id}`} 
-              className="w-full border-2 border-[#1E3A5F] text-[#1E3A5F] font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors text-center block"
-            >
+            <Link href={`/escrow/${listing.id}`} className="w-full border-2 border-[#1E3A5F] text-[#1E3A5F] font-semibold py-4 rounded-2xl hover:bg-gray-50 transition-colors text-center block">
               Pay Securely via Platform (Escrow)
             </Link>
           </div>
@@ -190,22 +166,27 @@ export default function ListingDetail() {
       <div className="mt-14">
         <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews</h2>
 
-        {/* Submit Review Form */}
         {user && (
           <div className="bg-white border rounded-2xl p-6 mb-8">
             <h3 className="font-semibold mb-4">Leave a Review</h3>
-            <form onSubmit={submitReview} className="space-y-4">
+            <form onSubmit={submitReview} className="space-y-5">
+              
+              {/* Clickable Star Rating */}
               <div>
-                <label className="block text-sm font-medium mb-1">Rating</label>
-                <select 
-                  value={rating} 
-                  onChange={(e) => setRating(Number(e.target.value))} 
-                  className="border rounded-xl px-4 py-2 w-full max-w-[120px]"
-                >
-                  {[5,4,3,2,1].map(n => (
-                    <option key={n} value={n}>{n} Star{n > 1 ? 's' : ''}</option>
+                <label className="block text-sm font-medium mb-2">Your Rating</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className={`text-3xl transition-colors ${star <= rating ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                    >
+                      ★
+                    </button>
                   ))}
-                </select>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">{rating} Star{rating > 1 ? 's' : ''}</p>
               </div>
 
               <div>
@@ -227,21 +208,18 @@ export default function ListingDetail() {
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
 
-              {reviewMessage && <p className="text-sm text-[#2E8B57] mt-2">{reviewMessage}</p>}
+              {reviewMessage && <p className="text-sm text-[#2E8B57]">{reviewMessage}</p>}
             </form>
           </div>
         )}
 
-        {/* Reviews List */}
         {reviews.length > 0 ? (
           <div className="space-y-4">
             {reviews.map((review) => (
               <div key={review.id} className="bg-white border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="text-yellow-500 text-lg">{'★'.repeat(review.rating)}</div>
-                  <span className="text-sm text-gray-500">
-                    {new Date(review.created_at).toLocaleDateString()}
-                  </span>
+                  <span className="text-sm text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
                 </div>
                 {review.comment && <p className="text-gray-700">{review.comment}</p>}
               </div>
