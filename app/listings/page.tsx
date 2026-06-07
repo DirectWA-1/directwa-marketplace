@@ -33,7 +33,7 @@ export default function ListingsPage() {
 
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
 
-  // ✅ Updated category-based placeholders
+  // ✅ Correct placeholder function
   const getPlaceholderImage = (category: string) => {
     const placeholders: { [key: string]: string } = {
       'Electronics': 'https://picsum.photos/id/20/400/300',
