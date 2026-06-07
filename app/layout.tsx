@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
+// Components
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
 export const metadata: Metadata = {
   title: {
     default: "DirectWA - Buy & Sell Locally in South Africa",
@@ -45,7 +49,9 @@ export default function RootLayout({
         ></script>
       </head>
       <body className="bg-gray-50">
+        <Navbar />
         {children}
+        <Footer />
         <Analytics />
       </body>
     </html>
