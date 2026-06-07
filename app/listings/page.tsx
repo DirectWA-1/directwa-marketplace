@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { track } from '@vercel/analytics';
 
 interface Listing {
   id: string;
@@ -113,11 +112,15 @@ export default function ListingsPage() {
   }, [searchTerm, selectedCategory, minPrice, maxPrice, sortOption, listings]);
 
   const openWhatsApp = (listing: Listing) => {
-    // ✅ Analytics Event
-    track('whatsapp_clicked', {
-      listing_id: listing.id,
-      category: listing.category,
-    });
+    // ✅ Plausible Analytics Event
+    if (typeof window !== "undefined" && (window as any).plausible) {
+      (window as any).plausible("whatsapp_clicked", {
+        props: {
+          listing_id: listing.id,
+          category: listing.category,
+        },
+      });
+    }
 
     const message = encodeURIComponent(`Hi, I'm interested in your "${listing.title}" on DirectWA.`);
     window.open(`https://wa.me/27721234567?text=${message}`, '_blank');

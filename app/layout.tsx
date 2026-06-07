@@ -1,25 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
-import { Analytics } from '@vercel/analytics/react';
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: {
-    default: "DirectWA | South Africa's WhatsApp Marketplace",
-    template: "%s | DirectWA",
-  },
-  description: "Buy and sell locally on WhatsApp. No store fees. Chat directly with sellers. Safe deals with optional escrow protection.",
+  title: "DirectWA - Buy & Sell Locally in South Africa",
+  description: "DirectWA is a simple C2C marketplace that connects buyers and sellers directly via WhatsApp. No middleman fees. Fast, local, and trustworthy.",
   icons: {
     icon: "/favicon.ico",
-  },
-  openGraph: {
-    title: "DirectWA - Direct deals. WhatsApp simple.",
-    description: "South Africa's hybrid marketplace. Browse on the web. Negotiate and complete deals directly on WhatsApp.",
-    images: [{ url: "/og-image.jpg" }],
   },
 };
 
@@ -30,14 +17,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <Navbar />
-
-        <main className="min-h-screen bg-gray-50">
-          {children}
-        </main>
-
-        <Footer />
+      <head>
+        {/* Plausible Analytics */}
+        <script
+          defer
+          data-domain="directwa-marketplace-n85e.vercel.app"
+          src="https://plausible.io/js/script.js"
+        ></script>
+      </head>
+      <body className="bg-gray-50">
+        {children}
         <Analytics />
       </body>
     </html>

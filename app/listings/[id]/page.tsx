@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { track } from '@vercel/analytics';
 
 interface Listing {
   id: string;
@@ -98,11 +97,15 @@ export default function ListingDetail() {
     if (error) {
       setReviewMessage('Error: ' + error.message);
     } else {
-      // ✅ Analytics Event
-      track('review_submitted', {
-        rating: rating,
-        hasComment: !!comment.trim(),
-      });
+      // ✅ Plausible Analytics Event
+      if (typeof window !== "undefined" && (window as any).plausible) {
+        (window as any).plausible("review_submitted", {
+          props: {
+            rating: rating,
+            hasComment: !!comment.trim(),
+          },
+        });
+      }
 
       setReviewMessage('Thank you! Your review was submitted.');
       setComment('');

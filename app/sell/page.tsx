@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Upload, X } from 'lucide-react';
-import { track } from '@vercel/analytics';
 
 export default function SellPage() {
   const [formData, setFormData] = useState({
@@ -71,11 +70,15 @@ export default function SellPage() {
 
       if (error) throw error;
 
-      // ✅ Analytics Event
-      track('listing_created', {
-        category: formData.category,
-        hasImage: imageUrls.length > 0,
-      });
+      // ✅ Plausible Analytics Event
+      if (typeof window !== "undefined" && (window as any).plausible) {
+        (window as any).plausible("listing_created", {
+          props: {
+            category: formData.category,
+            hasImage: imageUrls.length > 0,
+          },
+        });
+      }
 
       setMessage('✅ Listing published successfully!');
       setTimeout(() => window.location.href = '/listings', 1200);
