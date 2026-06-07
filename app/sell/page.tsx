@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Upload, X } from 'lucide-react';
+import { track } from '@vercel/analytics';
 
 export default function SellPage() {
   const [formData, setFormData] = useState({
@@ -23,38 +24,6 @@ export default function SellPage() {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const uploadImages = async (files: File[]): Promise<string[]> => {
-    const urls: string[] = [];
-    console.log('Starting image upload for', files.length, 'files');
-
-    for (const file of files) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      console.log('Uploading file:', fileName);
-
-      const { data, error } = await supabase.storage
-        .from('listing-images')
-        .upload(fileName, file);
-
-      if (error) {
-        console.error('Upload failed for', fileName, error);
-        setMessage('Image upload failed: ' + error.message);
-        continue;
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('listing-images')
-        .getPublicUrl(fileName);
-
-      console.log('Uploaded successfully:', publicUrl);
-      urls.push(publicUrl);
-    }
-
-    console.log('Final image URLs:', urls);
-    return urls;
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -63,19 +32,30 @@ export default function SellPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setMessage('Please log in');
+        setMessage('Please log in to create a listing');
         setLoading(false);
         return;
       }
 
       let imageUrls: string[] = [];
       if (images.length > 0) {
-        imageUrls = await uploadImages(images);
-      } else {
-        console.log('No images selected');
-      }
+        for (const file of images) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      console.log('Saving listing with images:', imageUrls);
+          const { data, error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(fileName, file);
+
+          if (uploadError) continue;
+
+          const { data: { publicUrl } } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(fileName);
+
+          imageUrls.push(publicUrl);
+        }
+      }
 
       const { error } = await supabase.from('listings').insert({
         user_id: user.id,
@@ -91,11 +71,16 @@ export default function SellPage() {
 
       if (error) throw error;
 
+      // ✅ Analytics Event
+      track('listing_created', {
+        category: formData.category,
+        hasImage: imageUrls.length > 0,
+      });
+
       setMessage('✅ Listing published successfully!');
       setTimeout(() => window.location.href = '/listings', 1200);
 
     } catch (err: any) {
-      console.error('Submit error:', err);
       setMessage('Error: ' + err.message);
     } finally {
       setLoading(false);
@@ -137,7 +122,6 @@ export default function SellPage() {
               <option>Electronics</option>
               <option>Fashion & Clothing</option>
               <option>Home & Garden</option>
-              <option>Vehicles & Parts</option>
               <option>Other</option>
             </select>
           </div>
@@ -159,7 +143,6 @@ export default function SellPage() {
             value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
         </div>
 
-        {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
           <div className="border-2 border-dashed rounded-2xl p-6 text-center">

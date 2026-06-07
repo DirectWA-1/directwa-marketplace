@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { track } from '@vercel/analytics';
 
 interface Listing {
   id: string;
@@ -35,7 +36,6 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  // Review form states
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -77,7 +77,6 @@ export default function ListingDetail() {
         setAverageRating(Math.round(avg * 10) / 10);
       }
     }
-
     setLoading(false);
   };
 
@@ -99,6 +98,12 @@ export default function ListingDetail() {
     if (error) {
       setReviewMessage('Error: ' + error.message);
     } else {
+      // ✅ Analytics Event
+      track('review_submitted', {
+        rating: rating,
+        hasComment: !!comment.trim(),
+      });
+
       setReviewMessage('Thank you! Your review was submitted.');
       setComment('');
       setRating(5);
@@ -170,8 +175,6 @@ export default function ListingDetail() {
           <div className="bg-white border rounded-2xl p-6 mb-8">
             <h3 className="font-semibold mb-4">Leave a Review</h3>
             <form onSubmit={submitReview} className="space-y-5">
-              
-              {/* Clickable Star Rating */}
               <div>
                 <label className="block text-sm font-medium mb-2">Your Rating</label>
                 <div className="flex gap-1">
@@ -226,7 +229,7 @@ export default function ListingDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
+          <p className="text-gray-500">No reviews yet.</p>
         )}
       </div>
     </div>

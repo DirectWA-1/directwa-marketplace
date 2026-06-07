@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { track } from '@vercel/analytics';
 
 interface Listing {
   id: string;
@@ -32,6 +33,17 @@ export default function ListingsPage() {
   const [sortOption, setSortOption] = useState('newest');
 
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
+
+  const getPlaceholderImage = (category: string) => {
+    const placeholders: { [key: string]: string } = {
+      'Electronics': 'https://picsum.photos/id/20/400/300',
+      'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300',
+      'Home & Garden': 'https://picsum.photos/id/160/400/300',
+      'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',
+      'Other': 'https://picsum.photos/id/251/400/300',
+    };
+    return placeholders[category] || 'https://picsum.photos/id/20/400/300';
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,6 +113,12 @@ export default function ListingsPage() {
   }, [searchTerm, selectedCategory, minPrice, maxPrice, sortOption, listings]);
 
   const openWhatsApp = (listing: Listing) => {
+    // ✅ Analytics Event
+    track('whatsapp_clicked', {
+      listing_id: listing.id,
+      category: listing.category,
+    });
+
     const message = encodeURIComponent(`Hi, I'm interested in your "${listing.title}" on DirectWA.`);
     window.open(`https://wa.me/27721234567?text=${message}`, '_blank');
   };
@@ -161,16 +179,7 @@ export default function ListingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredListings.map((listing) => {
             const avgRating = getAverageRating(listing.id);
-
-            // Simple and reliable placeholder logic
-            let displayImage = listing.images?.[0];
-            if (!displayImage) {
-              if (listing.category === 'Electronics') displayImage = 'https://picsum.photos/id/20/400/300';
-              else if (listing.category === 'Fashion & Clothing') displayImage = 'https://picsum.photos/id/1005/400/300';
-              else if (listing.category === 'Home & Garden') displayImage = 'https://picsum.photos/id/160/400/300';
-              else if (listing.category === 'Vehicles & Parts') displayImage = 'https://picsum.photos/id/201/400/300';
-              else displayImage = 'https://picsum.photos/id/251/400/300';
-            }
+            const displayImage = listing.images?.[0] || getPlaceholderImage(listing.category);
 
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
