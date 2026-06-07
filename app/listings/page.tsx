@@ -112,7 +112,6 @@ export default function ListingsPage() {
   }, [searchTerm, selectedCategory, minPrice, maxPrice, sortOption, listings]);
 
   const openWhatsApp = (listing: Listing) => {
-    // ✅ Plausible Analytics Event
     if (typeof window !== "undefined" && (window as any).plausible) {
       (window as any).plausible("whatsapp_clicked", {
         props: {
@@ -186,42 +185,55 @@ export default function ListingsPage() {
 
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
-                <div className="relative">
-                  <img 
-                    src={displayImage} 
-                    alt={listing.title} 
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
-                  />
-                  {listing.category && (
-                    <div className="absolute top-3 left-3 bg-white/90 text-[#1E3A5F] text-xs font-medium px-3 py-1 rounded-full">
-                      {listing.category}
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-5">
-                  <h3 className="font-semibold text-lg mb-2 line-clamp-2">{listing.title}</h3>
-
-                  {avgRating > 0 && (
-                    <div className="flex items-center gap-1 mb-2">
-                      <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
-                      <span className="text-sm text-gray-600">{avgRating}</span>
-                    </div>
-                  )}
-
-                  <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
-                    R{listing.price.toLocaleString()}
+                
+                {/* Clickable Image + Content */}
+                <Link href={`/listings/${listing.id}`} className="block">
+                  <div className="relative">
+                    <img 
+                      src={displayImage} 
+                      alt={listing.title} 
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
+                    />
+                    {listing.category && (
+                      <div className="absolute top-3 left-3 bg-white/90 text-[#1E3A5F] text-xs font-medium px-3 py-1 rounded-full">
+                        {listing.category}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
 
-                  <div className="flex gap-2">
-                    <button onClick={() => openWhatsApp(listing)} className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm">
-                      Chat on WhatsApp
-                    </button>
-                    <Link href={`/listings/${listing.id}`} className="px-5 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50">
-                      View
-                    </Link>
+                  <div className="p-5">
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-[#2E8B57] transition-colors">
+                      {listing.title}
+                    </h3>
+
+                    {avgRating > 0 && (
+                      <div className="flex items-center gap-1 mb-2">
+                        <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
+                        <span className="text-sm text-gray-600">{avgRating}</span>
+                      </div>
+                    )}
+
+                    <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
+                      R{listing.price.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
                   </div>
+                </Link>
+
+                {/* Action Buttons */}
+                <div className="px-5 pb-5 flex gap-2">
+                  <button 
+                    onClick={() => openWhatsApp(listing)} 
+                    className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm"
+                  >
+                    Chat on WhatsApp
+                  </button>
+                  <Link 
+                    href={`/listings/${listing.id}`} 
+                    className="px-5 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50 flex items-center justify-center"
+                  >
+                    View
+                  </Link>
                 </div>
               </div>
             );
