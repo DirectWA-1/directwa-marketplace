@@ -26,13 +26,33 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default async function ListingDetailPage({ params }: { params: { id: string } }) {
+  // Fetch listing
   const { data: listing } = await supabase
     .from('listings')
     .select('title, price, location, category, description, images, condition')
     .eq('id', params.id)
     .single();
 
-  // Structured Data (JSON-LD)
+  // Fetch reviews for aggregate rating
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('rating')
+    .eq('listing_id', params.id);
+
+  let aggregateRating = null;
+
+  if (reviews && reviews.length > 0) {
+    const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+    const averageRating = totalRating / reviews.length;
+
+    aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: averageRating.toFixed(1),
+      reviewCount: reviews.length,
+    };
+  }
+
+  // Structured Data
   const structuredData = listing
     ? {
         "@context": "https://schema.org",
@@ -46,11 +66,8 @@ export default async function ListingDetailPage({ params }: { params: { id: stri
           priceCurrency: "ZAR",
           price: listing.price,
           availability: "https://schema.org/InStock",
-          seller: {
-            "@type": "Organization",
-            name: "DirectWA Seller",
-          },
         },
+        ...(aggregateRating && { aggregateRating }),
       }
     : null;
 
