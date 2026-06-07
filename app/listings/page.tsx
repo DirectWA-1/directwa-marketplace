@@ -14,7 +14,6 @@ interface Listing {
   created_at?: string;
 }
 
-
 interface Review {
   listing_id: string;
   rating: number;
@@ -39,7 +38,6 @@ export default function ListingsPage() {
     const fetchData = async () => {
       setLoading(true);
 
-      // Fetch active listings
       const { data: listingsData } = await supabase
         .from('listings')
         .select('*')
@@ -50,7 +48,6 @@ export default function ListingsPage() {
         setListings(listingsData);
         setFilteredListings(listingsData);
 
-        // Fetch reviews for these listings
         const listingIds = listingsData.map(l => l.id);
         if (listingIds.length > 0) {
           const { data: reviewsData } = await supabase
@@ -67,7 +64,7 @@ export default function ListingsPage() {
     fetchData();
   }, []);
 
-  // Calculate average rating for a listing
+  // Calculate average rating
   const getAverageRating = (listingId: string) => {
     const listingReviews = reviews.filter(r => r.listing_id === listingId);
     if (listingReviews.length === 0) return 0;
@@ -186,7 +183,7 @@ export default function ListingsPage() {
                 <div className="p-5">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-2">{listing.title}</h3>
 
-                  {/* Average Rating */}
+                  {/* Average Rating Stars */}
                   {avgRating > 0 && (
                     <div className="flex items-center gap-1 mb-2">
                       <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
