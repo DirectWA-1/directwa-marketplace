@@ -25,7 +25,6 @@ export default function ListingsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [minPrice, setMinPrice] = useState('');
@@ -33,6 +32,18 @@ export default function ListingsPage() {
   const [sortOption, setSortOption] = useState('newest');
 
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
+
+  // Category-based placeholder images
+  const getPlaceholderImage = (category: string) => {
+    const placeholders: { [key: string]: string } = {
+      'Electronics': 'https://picsum.photos/id/20/400/300',
+      'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300',
+      'Home & Garden': 'https://picsum.photos/id/160/400/300',
+      'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',
+      'Other': 'https://picsum.photos/id/251/400/300',
+    };
+    return placeholders[category] || 'https://picsum.photos/id/20/400/300';
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,7 +75,6 @@ export default function ListingsPage() {
     fetchData();
   }, []);
 
-  // Calculate average rating
   const getAverageRating = (listingId: string) => {
     const listingReviews = reviews.filter(r => r.listing_id === listingId);
     if (listingReviews.length === 0) return 0;
@@ -72,7 +82,6 @@ export default function ListingsPage() {
     return Math.round(avg * 10) / 10;
   };
 
-  // Apply filters + sorting
   useEffect(() => {
     let result = [...listings];
 
@@ -85,7 +94,6 @@ export default function ListingsPage() {
     if (minPrice) result = result.filter(l => l.price >= parseFloat(minPrice));
     if (maxPrice) result = result.filter(l => l.price <= parseFloat(maxPrice));
 
-    // Sorting
     switch (sortOption) {
       case 'newest':
         result.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
@@ -165,11 +173,13 @@ export default function ListingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredListings.map((listing) => {
             const avgRating = getAverageRating(listing.id);
+            const displayImage = listing.images?.[0] || getPlaceholderImage(listing.category);
+
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
                 <div className="relative">
                   <img 
-                    src={listing.images?.[0] || 'https://picsum.photos/id/20/400/300'} 
+                    src={displayImage} 
                     alt={listing.title} 
                     className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
                   />
@@ -183,7 +193,6 @@ export default function ListingsPage() {
                 <div className="p-5">
                   <h3 className="font-semibold text-lg mb-2 line-clamp-2">{listing.title}</h3>
 
-                  {/* Average Rating Stars */}
                   {avgRating > 0 && (
                     <div className="flex items-center gap-1 mb-2">
                       <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
