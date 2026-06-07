@@ -76,7 +76,6 @@ export default function ListingsPage() {
     fetchData();
   }, []);
 
-  // Get average rating for a specific listing
   const getAverageRating = (listingId: string) => {
     const listingReviews = reviews.filter(r => r.listing_id === listingId);
     if (listingReviews.length === 0) return 0;
@@ -84,7 +83,6 @@ export default function ListingsPage() {
     return Math.round(avg * 10) / 10;
   };
 
-  // Get seller's overall average rating
   const getSellerRating = (sellerId: string) => {
     const sellerReviews = reviews.filter(r => r.seller_id === sellerId);
     if (sellerReviews.length === 0) return 0;
@@ -92,7 +90,6 @@ export default function ListingsPage() {
     return Math.round(avg * 10) / 10;
   };
 
-  // Get number of reviews for a seller
   const getSellerReviewCount = (sellerId: string) => {
     return reviews.filter(r => r.seller_id === sellerId).length;
   };
@@ -206,6 +203,7 @@ export default function ListingsPage() {
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
                 
+                {/* Image - Clickable to Listing Detail */}
                 <Link href={`/listings/${listing.id}`} className="block">
                   <div className="relative">
                     <img 
@@ -219,40 +217,49 @@ export default function ListingsPage() {
                       </div>
                     )}
                   </div>
+                </Link>
 
-                  <div className="p-5">
+                <div className="p-5">
+                  {/* Title - Clickable to Listing Detail */}
+                  <Link href={`/listings/${listing.id}`} className="block">
                     <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-[#2E8B57] transition-colors">
                       {listing.title}
                     </h3>
+                  </Link>
 
-                    {/* Listing Rating */}
-                    {hasListingReviews && (
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
-                        <span className="text-sm font-semibold">{avgRating}</span>
-                        <span className="text-xs text-gray-500">
-                          ({reviews.filter(r => r.listing_id === listing.id).length})
-                        </span>
-                      </div>
-                    )}
+                  {/* Listing Rating */}
+                  {hasListingReviews && (
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
+                      <span className="text-sm font-semibold">{avgRating}</span>
+                      <span className="text-xs text-gray-500">
+                        ({reviews.filter(r => r.listing_id === listing.id).length})
+                      </span>
+                    </div>
+                  )}
 
-                    {/* Seller Rating */}
-                    {hasSellerReviews && (
-                      <div className="flex items-center gap-1.5 mb-2 text-xs">
-                        <span className="text-gray-500">Seller:</span>
+                  {/* Seller Rating - Clickable to Seller Profile */}
+                  {hasSellerReviews && (
+                    <div className="flex items-center gap-1.5 mb-2 text-xs">
+                      <span className="text-gray-500">Seller:</span>
+                      <Link 
+                        href={`/seller/${listing.user_id}`} 
+                        className="flex items-center gap-1 hover:underline"
+                      >
                         <div className="text-yellow-500">{'★'.repeat(Math.round(sellerRating))}</div>
                         <span className="font-medium">{sellerRating}</span>
                         <span className="text-gray-400">({sellerReviewCount})</span>
-                      </div>
-                    )}
-
-                    <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
-                      R{listing.price.toLocaleString()}
+                      </Link>
                     </div>
-                    <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
-                  </div>
-                </Link>
+                  )}
 
+                  <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
+                    R{listing.price.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
+                </div>
+
+                {/* Action Buttons */}
                 <div className="px-5 pb-5 flex gap-2">
                   <button 
                     onClick={() => openWhatsApp(listing)} 
