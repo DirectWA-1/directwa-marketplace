@@ -11,11 +11,13 @@ interface Listing {
   location: string;
   category: string;
   images: string[];
+  user_id: string;
   created_at?: string;
 }
 
 interface Review {
   listing_id: string;
+  seller_id: string;
   rating: number;
 }
 
@@ -62,7 +64,7 @@ export default function ListingsPage() {
         if (listingIds.length > 0) {
           const { data: reviewsData } = await supabase
             .from('reviews')
-            .select('listing_id, rating')
+            .select('listing_id, seller_id, rating')
             .in('listing_id', listingIds);
 
           if (reviewsData) setReviews(reviewsData);
@@ -74,11 +76,25 @@ export default function ListingsPage() {
     fetchData();
   }, []);
 
+  // Get average rating for a specific listing
   const getAverageRating = (listingId: string) => {
     const listingReviews = reviews.filter(r => r.listing_id === listingId);
     if (listingReviews.length === 0) return 0;
     const avg = listingReviews.reduce((sum, r) => sum + r.rating, 0) / listingReviews.length;
     return Math.round(avg * 10) / 10;
+  };
+
+  // Get seller's overall average rating
+  const getSellerRating = (sellerId: string) => {
+    const sellerReviews = reviews.filter(r => r.seller_id === sellerId);
+    if (sellerReviews.length === 0) return 0;
+    const avg = sellerReviews.reduce((sum, r) => sum + r.rating, 0) / sellerReviews.length;
+    return Math.round(avg * 10) / 10;
+  };
+
+  // Get number of reviews for a seller
+  const getSellerReviewCount = (sellerId: string) => {
+    return reviews.filter(r => r.seller_id === sellerId).length;
   };
 
   useEffect(() => {
@@ -181,12 +197,15 @@ export default function ListingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredListings.map((listing) => {
             const avgRating = getAverageRating(listing.id);
+            const sellerRating = getSellerRating(listing.user_id);
+            const sellerReviewCount = getSellerReviewCount(listing.user_id);
             const displayImage = listing.images?.[0] || getPlaceholderImage(listing.category);
+            const hasListingReviews = avgRating > 0;
+            const hasSellerReviews = sellerRating > 0;
 
             return (
               <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
                 
-                {/* Clickable Image + Content */}
                 <Link href={`/listings/${listing.id}`} className="block">
                   <div className="relative">
                     <img 
@@ -206,10 +225,24 @@ export default function ListingsPage() {
                       {listing.title}
                     </h3>
 
-                    {avgRating > 0 && (
-                      <div className="flex items-center gap-1 mb-2">
+                    {/* Listing Rating */}
+                    {hasListingReviews && (
+                      <div className="flex items-center gap-1.5 mb-1">
                         <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
-                        <span className="text-sm text-gray-600">{avgRating}</span>
+                        <span className="text-sm font-semibold">{avgRating}</span>
+                        <span className="text-xs text-gray-500">
+                          ({reviews.filter(r => r.listing_id === listing.id).length})
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Seller Rating */}
+                    {hasSellerReviews && (
+                      <div className="flex items-center gap-1.5 mb-2 text-xs">
+                        <span className="text-gray-500">Seller:</span>
+                        <div className="text-yellow-500">{'★'.repeat(Math.round(sellerRating))}</div>
+                        <span className="font-medium">{sellerRating}</span>
+                        <span className="text-gray-400">({sellerReviewCount})</span>
                       </div>
                     )}
 
@@ -220,7 +253,6 @@ export default function ListingsPage() {
                   </div>
                 </Link>
 
-                {/* Action Buttons */}
                 <div className="px-5 pb-5 flex gap-2">
                   <button 
                     onClick={() => openWhatsApp(listing)} 
