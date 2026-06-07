@@ -11,7 +11,9 @@ interface Listing {
   location: string;
   category: string;
   images: string[];
+  created_at?: string;
 }
+
 
 interface Review {
   listing_id: string;
