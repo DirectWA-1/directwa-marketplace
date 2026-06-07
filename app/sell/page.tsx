@@ -25,16 +25,21 @@ export default function SellPage() {
 
   const uploadImages = async (files: File[]): Promise<string[]> => {
     const urls: string[] = [];
+    console.log('Starting image upload for', files.length, 'files');
+
     for (const file of files) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+      console.log('Uploading file:', fileName);
 
       const { data, error } = await supabase.storage
         .from('listing-images')
         .upload(fileName, file);
 
       if (error) {
-        console.error('Upload error:', error);
+        console.error('Upload failed for', fileName, error);
+        setMessage('Image upload failed: ' + error.message);
         continue;
       }
 
@@ -42,8 +47,11 @@ export default function SellPage() {
         .from('listing-images')
         .getPublicUrl(fileName);
 
+      console.log('Uploaded successfully:', publicUrl);
       urls.push(publicUrl);
     }
+
+    console.log('Final image URLs:', urls);
     return urls;
   };
 
@@ -63,7 +71,11 @@ export default function SellPage() {
       let imageUrls: string[] = [];
       if (images.length > 0) {
         imageUrls = await uploadImages(images);
+      } else {
+        console.log('No images selected');
       }
+
+      console.log('Saving listing with images:', imageUrls);
 
       const { error } = await supabase.from('listings').insert({
         user_id: user.id,
@@ -83,6 +95,7 @@ export default function SellPage() {
       setTimeout(() => window.location.href = '/listings', 1200);
 
     } catch (err: any) {
+      console.error('Submit error:', err);
       setMessage('Error: ' + err.message);
     } finally {
       setLoading(false);
