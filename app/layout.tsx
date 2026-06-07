@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
-
-// Components
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: {
@@ -49,9 +46,15 @@ export default function RootLayout({
         ></script>
       </head>
       <body className="bg-gray-50">
-        <Navbar />
         {children}
-        <Footer />
+        
+        {/* Sonner Toast Notifications */}
+        <Toaster 
+          position="top-center" 
+          richColors 
+          closeButton 
+        />
+        
         <Analytics />
       </body>
     </html>
