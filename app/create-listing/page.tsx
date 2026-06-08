@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -17,7 +17,7 @@ interface FormData {
   description: string;
 }
 
-function SellForm() {
+export default function CreateListingPage() {
   const router = useRouter();
   const [editId, setEditId] = useState<string | null>(null);
 
@@ -37,15 +37,15 @@ function SellForm() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  // Get editId safely
+  // Get editId from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setEditId(params.get('edit'));
   }, []);
 
-  // Load everything inside useEffect
+  // Load user + profile + existing listing
   useEffect(() => {
-    const loadEverything = async () => {
+    const loadData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -94,7 +94,7 @@ function SellForm() {
     };
 
     if (editId !== null) {
-      loadEverything();
+      loadData();
     }
   }, [editId, router]);
 
@@ -215,7 +215,7 @@ function SellForm() {
     <div className="max-w-2xl mx-auto px-4 py-10">
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-[#1E3A5F]">
-          {isEditing ? 'Edit Listing' : 'Sell an Item'}
+          {isEditing ? 'Edit Listing' : 'Create New Listing'}
         </h1>
         <p className="text-gray-600 mt-2">
           {isEditing ? 'Update your listing details below' : 'List your item in under 2 minutes'}
@@ -314,25 +314,9 @@ function SellForm() {
         </div>
 
         <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-xl text-lg">
-          {loading ? (isEditing ? 'Updating...' : 'Publishing...') : (isEditing ? 'Update Listing' : 'Publish Listing')}
+          {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Listing' : 'Create Listing')}
         </button>
       </form>
     </div>
-  );
-}
-
-// Wrap with Suspense as extra protection
-export default function SellPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    }>
-      <SellForm />
-    </Suspense>
   );
 }

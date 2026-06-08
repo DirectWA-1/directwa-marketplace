@@ -72,7 +72,6 @@ export default function MyListingsPage() {
     }
   };
 
-  // ==================== SKELETON LOADER ====================
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -101,7 +100,7 @@ export default function MyListingsPage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold text-[#1E3A5F]">My Listings ({listings.length})</h1>
-        <Link href="/sell" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold">
+        <Link href="/create-listing" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold">
           + Create New Listing
         </Link>
       </div>
@@ -109,7 +108,7 @@ export default function MyListingsPage() {
       {listings.length === 0 ? (
         <div className="bg-white border rounded-2xl p-12 text-center">
           <p className="text-gray-600 mb-4">You don't have any active listings yet.</p>
-          <Link href="/sell" className="inline-block bg-[#2E8B57] text-white px-6 py-3 rounded-xl font-semibold">
+          <Link href="/create-listing" className="inline-block bg-[#2E8B57] text-white px-6 py-3 rounded-xl font-semibold">
             Create Your First Listing
           </Link>
         </div>
@@ -132,13 +131,22 @@ export default function MyListingsPage() {
                   <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
 
                   <div className="flex gap-2 mt-4">
-                    <Link href={`/sell?edit=${listing.id}`} className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50">
+                    <Link 
+                      href={`/create-listing?edit=${listing.id}`} 
+                      className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50"
+                    >
                       Edit
                     </Link>
-                    <button onClick={() => handleMarkAsSold(listing.id)} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm">
+                    <button 
+                      onClick={() => handleMarkAsSold(listing.id)} 
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm"
+                    >
                       Mark Sold
                     </button>
-                    <button onClick={() => handleDelete(listing.id)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
+                    <button 
+                      onClick={() => handleDelete(listing.id)} 
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm"
+                    >
                       Delete
                     </button>
                   </div>

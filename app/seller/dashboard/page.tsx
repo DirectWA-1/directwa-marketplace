@@ -25,26 +25,6 @@ export default function SellerDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchListings = async (userId: string) => {
-    const { data: activeData } = await supabase
-      .from('listings')
-      .select('id, title, price, location, images, created_at')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false });
-
-    if (activeData) setActiveListings(activeData);
-
-    const { data: soldData } = await supabase
-      .from('listings')
-      .select('id, title, price, location, images, created_at')
-      .eq('user_id', userId)
-      .eq('status', 'sold')
-      .order('created_at', { ascending: false });
-
-    if (soldData) setSoldListings(soldData);
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -54,8 +34,28 @@ export default function SellerDashboard() {
       }
 
       setUser(user);
-      await fetchListings(user.id);
 
+      // Active listings
+      const { data: activeData } = await supabase
+        .from('listings')
+        .select('id, title, price, location, images, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (activeData) setActiveListings(activeData);
+
+      // Sold listings
+      const { data: soldData } = await supabase
+        .from('listings')
+        .select('id, title, price, location, images, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'sold')
+        .order('created_at', { ascending: false });
+
+      if (soldData) setSoldListings(soldData);
+
+      // Reviews
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('rating')
@@ -72,20 +72,14 @@ export default function SellerDashboard() {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
 
-  // ==================== SKELETON LOADER ====================
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Header Skeleton */}
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <div className="h-9 w-64 bg-gray-200 rounded animate-pulse" />
-            <div className="h-5 w-80 bg-gray-200 rounded mt-2 animate-pulse" />
-          </div>
+          <div className="h-9 w-64 bg-gray-200 rounded animate-pulse" />
           <div className="h-12 w-40 bg-gray-200 rounded-xl animate-pulse" />
         </div>
 
-        {/* Stats Skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white border rounded-2xl p-6 animate-pulse">
@@ -93,22 +87,6 @@ export default function SellerDashboard() {
               <div className="h-10 w-16 bg-gray-200 rounded mt-3" />
             </div>
           ))}
-        </div>
-
-        {/* Active Listings Skeleton */}
-        <div className="mb-12">
-          <div className="h-8 w-48 bg-gray-200 rounded mb-6 animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white border rounded-2xl overflow-hidden animate-pulse">
-                <div className="w-full h-48 bg-gray-200" />
-                <div className="p-5 space-y-3">
-                  <div className="h-5 bg-gray-200 rounded w-3/4" />
-                  <div className="h-7 bg-gray-200 rounded w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     );
@@ -127,7 +105,7 @@ export default function SellerDashboard() {
           <Link href="/seller/setup" className="px-5 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50">
             Edit Public Profile
           </Link>
-          <Link href="/sell" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold">
+          <Link href="/create-listing" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold">
             + Create New Listing
           </Link>
         </div>
@@ -160,7 +138,7 @@ export default function SellerDashboard() {
         {activeListings.length === 0 ? (
           <div className="bg-white border rounded-2xl p-8 text-center">
             <p className="text-gray-600 mb-4">You have no active listings.</p>
-            <Link href="/sell" className="inline-block bg-[#2E8B57] text-white px-6 py-3 rounded-xl font-semibold">
+            <Link href="/create-listing" className="inline-block bg-[#2E8B57] text-white px-6 py-3 rounded-xl font-semibold">
               Create New Listing
             </Link>
           </div>
@@ -182,13 +160,33 @@ export default function SellerDashboard() {
                     <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
 
                     <div className="flex gap-2 mt-4">
-                      <Link href={`/sell?edit=${listing.id}`} className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50">
+                      <Link 
+                        href={`/create-listing?edit=${listing.id}`} 
+                        className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50"
+                      >
                         Edit
                       </Link>
-                      <button className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm">
-                        Mark as Sold
+                      <button 
+                        onClick={async () => {
+                          const { error } = await supabase.from('listings').update({ status: 'sold' }).eq('id', listing.id);
+                          if (!error) {
+                            setActiveListings(prev => prev.filter(l => l.id !== listing.id));
+                            toast.success('Marked as sold');
+                          }
+                        }} 
+                        className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm"
+                      >
+                        Mark Sold
                       </button>
-                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
+                      <button 
+                        onClick={async () => {
+                          if (confirm('Delete this listing?')) {
+                            await supabase.from('listings').delete().eq('id', listing.id);
+                            setActiveListings(prev => prev.filter(l => l.id !== listing.id));
+                          }
+                        }} 
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm"
+                      >
                         Delete
                       </button>
                     </div>
