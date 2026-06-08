@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
-export default function SellerSetup() {
+export default function SellerSetupPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -17,18 +16,19 @@ export default function SellerSetup() {
     location: '',
   });
 
+  // Load existing profile data
   useEffect(() => {
-    const getUser = async () => {
+    const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+
       if (!user) {
         router.push('/login');
         return;
       }
-      setUser(user);
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('*')
+        .select('full_name, bio, location')
         .eq('id', user.id)
         .single();
 
@@ -42,64 +42,83 @@ export default function SellerSetup() {
       setLoading(false);
     };
 
-    getUser();
+    loadProfile();
   }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
     setSaving(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('You must be logged in');
+      setSaving(false);
+      return;
+    }
 
     const { error } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        full_name: formData.full_name,
-        bio: formData.bio,
-        location: formData.location,
-      });
+      .update({
+        full_name: formData.full_name.trim(),
+        bio: formData.bio.trim(),
+        location: formData.location.trim(),
+      })
+      .eq('id', user.id);
 
     if (error) {
-      toast.error('Error saving profile: ' + error.message);
+      toast.error('Failed to save profile');
     } else {
-      toast.success('Profile saved successfully!');
-      setTimeout(() => router.push('/my-listings'), 1200);
+      toast.success('Profile updated successfully!');
+      router.push('/listings');
     }
     setSaving(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="bg-white border rounded-2xl p-8 animate-pulse">
+          <div className="h-8 w-64 bg-gray-200 rounded mb-8" />
+          <div className="space-y-6">
+            <div className="h-12 bg-gray-200 rounded-xl" />
+            <div className="h-12 bg-gray-200 rounded-xl" />
+            <div className="h-32 bg-gray-200 rounded-2xl" />
+            <div className="h-12 bg-gray-200 rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">Complete Your Seller Profile</h1>
-      <p className="text-gray-600 mb-8">This information will be visible to buyers.</p>
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">Complete Your Seller Profile</h1>
+        <p className="text-gray-600 mt-2">This information will be visible to buyers.</p>
+      </div>
 
       <form onSubmit={handleSubmit} className="bg-white border rounded-2xl p-8 space-y-6">
         <div>
           <label className="block text-sm font-medium mb-1.5">Full Name *</label>
-          <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="Your full name" required />
+          <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" required />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1.5">Location</label>
-          <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="Johannesburg, South Africa" />
+          <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="e.g. Johannesburg, Gauteng" />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1.5">Bio / About You</label>
-          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full border rounded-2xl px-4 py-3" placeholder="Tell buyers about yourself..." />
+          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full border rounded-2xl px-4 py-3" placeholder="Tell buyers a bit about yourself..." />
         </div>
 
-        <button type="submit" disabled={saving} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-3.5 rounded-xl disabled:opacity-70">
+        <button type="submit" disabled={saving} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white py-4 rounded-2xl font-semibold text-lg">
           {saving ? 'Saving...' : 'Save Profile'}
         </button>
       </form>

@@ -3,160 +3,149 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface Listing {
   id: string;
   title: string;
   price: number;
-  status: string;
   location: string;
-  category: string;
+  images: string[];
+  created_at: string;
 }
 
-export default function MyListings() {
+export default function MyListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const loadData = async () => {
+    const fetchMyListings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
 
-      if (user) {
-        const { data } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+      if (!user) {
+        window.location.href = '/login';
+        return;
+      }
 
-        if (data) setListings(data);
+      const { data, error } = await supabase
+        .from('listings')
+        .select('id, title, price, location, images, created_at')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        toast.error('Failed to load your listings');
+      } else if (data) {
+        setListings(data);
       }
       setLoading(false);
     };
-    loadData();
+
+    fetchMyListings();
   }, []);
 
-  const updateStatus = async (id: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: newStatus })
-      .eq('id', id);
-
-    if (!error) {
-      setMessage('Status updated');
-      const { data } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      if (data) setListings(data);
-    } else {
-      setMessage('Error updating status');
-    }
-  };
-
-  const deleteListing = async (id: string) => {
-    if (!confirm('Delete this listing?')) return;
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this listing?')) return;
 
     const { error } = await supabase.from('listings').delete().eq('id', id);
-    if (!error) {
-      setListings(listings.filter(l => l.id !== id));
-      setMessage('Listing deleted');
+
+    if (error) {
+      toast.error('Failed to delete listing');
     } else {
-      setMessage('Error deleting listing');
+      setListings(prev => prev.filter(listing => listing.id !== id));
+      toast.success('Listing deleted');
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  const handleMarkAsSold = async (id: string) => {
+    const { error } = await supabase
+      .from('listings')
+      .update({ status: 'sold' })
+      .eq('id', id);
 
-  if (!user) {
+    if (error) {
+      toast.error('Failed to mark as sold');
+    } else {
+      setListings(prev => prev.filter(listing => listing.id !== id));
+      toast.success('Listing marked as sold');
+    }
+  };
+
+  // ==================== SKELETON LOADER ====================
+  if (loading) {
     return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <h2 className="text-2xl font-bold mb-4">Please log in</h2>
-        <Link href="/login" className="bg-[#1E3A5F] text-white px-6 py-3 rounded-xl inline-block">
-          Log in
-        </Link>
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div className="h-9 w-48 bg-gray-200 rounded animate-pulse" />
+          <div className="h-12 w-44 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white border rounded-2xl overflow-hidden animate-pulse">
+              <div className="w-full h-48 bg-gray-200" />
+              <div className="p-5 space-y-3">
+                <div className="h-5 bg-gray-200 rounded w-3/4" />
+                <div className="h-7 bg-gray-200 rounded w-1/2" />
+                <div className="h-4 bg-gray-200 rounded w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E3A5F]">My Listings</h1>
-          <p className="text-gray-600">Manage your listings</p>
-        </div>
-        <Link href="/sell" className="bg-[#2E8B57] text-white px-5 py-2.5 rounded-xl font-semibold">
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">My Listings ({listings.length})</h1>
+        <Link href="/sell" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold">
           + Create New Listing
         </Link>
       </div>
 
-      {message && <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-xl text-sm">{message}</div>}
-
       {listings.length === 0 ? (
         <div className="bg-white border rounded-2xl p-12 text-center">
-          <p className="text-gray-600 mb-6">You have no listings yet.</p>
-          <Link href="/sell" className="bg-[#2E8B57] text-white px-6 py-3 rounded-xl inline-block">
+          <p className="text-gray-600 mb-4">You don't have any active listings yet.</p>
+          <Link href="/sell" className="inline-block bg-[#2E8B57] text-white px-6 py-3 rounded-xl font-semibold">
             Create Your First Listing
           </Link>
         </div>
       ) : (
-        <div className="bg-white border rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-4 text-left">Item</th>
-                <th className="p-4 text-left">Price</th>
-                <th className="p-4 text-left">Location</th>
-                <th className="p-4">Status</th>
-                <th className="p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {listings.map((listing) => (
-                <tr key={listing.id} className="hover:bg-gray-50">
-                  <td className="p-4 font-medium">{listing.title}</td>
-                  <td className="p-4 font-semibold">R{listing.price}</td>
-                  <td className="p-4 text-gray-600">{listing.location}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <select 
-                        value={listing.status} 
-                        onChange={(e) => updateStatus(listing.id, e.target.value)}
-                        className="border rounded-lg px-3 py-1.5 text-sm bg-white"
-                      >
-                        <option value="active">Active</option>
-                        <option value="sold">Sold</option>
-                        <option value="expired">Expired</option>
-                      </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {listings.map((listing) => {
+            const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
 
-                      {listing.status !== 'sold' && (
-                        <button 
-                          onClick={() => updateStatus(listing.id, 'sold')}
-                          className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                          Mark as Sold
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex gap-2">
-                      <Link href={`/listings/${listing.id}`} className="px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-100">
-                        View
-                      </Link>
-                      <button onClick={() => deleteListing(listing.id)} className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            return (
+              <div key={listing.id} className="bg-white border rounded-2xl overflow-hidden group">
+                <Link href={`/listings/${listing.id}`}>
+                  <img src={image} alt={listing.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform" />
+                </Link>
+
+                <div className="p-5">
+                  <Link href={`/listings/${listing.id}`}>
+                    <h3 className="font-semibold line-clamp-2 hover:text-[#2E8B57]">{listing.title}</h3>
+                  </Link>
+                  <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
+                  <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
+
+                  <div className="flex gap-2 mt-4">
+                    <Link href={`/sell?edit=${listing.id}`} className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50">
+                      Edit
+                    </Link>
+                    <button onClick={() => handleMarkAsSold(listing.id)} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm">
+                      Mark Sold
+                    </button>
+                    <button onClick={() => handleDelete(listing.id)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "verify": "node verify-deployment.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
@@ -27,4 +28,4 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   }
-}
+} 

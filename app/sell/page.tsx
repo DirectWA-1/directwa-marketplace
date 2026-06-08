@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,12 +17,14 @@ interface FormData {
   description: string;
 }
 
-export default function CreateListingPage() {
+export default function SellPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
 
-  const [editId, setEditId] = useState<string | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -35,86 +37,92 @@ export default function CreateListingPage() {
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // Get editId from URL using plain JavaScript (client-side only)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setEditId(params.get('edit'));
-  }, []);
-
-  // Load profile + existing listing (if editing)
+  // Load user + profile + existing listing (if editing)
   useEffect(() => {
     const loadData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
 
-      if (!profile || !profile.full_name) {
-        router.push('/seller/setup');
-        return;
-      }
-
-      if (editId) {
-        setIsEditing(true);
-        const { data: listing } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('id', editId)
-          .eq('user_id', user.id)
+        // Check if user has completed seller profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
           .single();
 
-        if (listing) {
-          setFormData({
-            title: listing.title || '',
-            price: listing.price?.toString() || '',
-            location: listing.location || '',
-            category: listing.category || 'Electronics',
-            condition: listing.condition || 'Good',
-            description: listing.description || '',
-          });
-          setExistingImages(listing.images || []);
+        if (!profile || !profile.full_name) {
+          router.push('/seller/setup');
+          return;
         }
-      }
 
-      setCheckingProfile(false);
+        // If editing, load existing listing
+        if (editId) {
+          setIsEditing(true);
+          const { data: listing } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('id', editId)
+            .eq('user_id', user.id)
+            .single();
+
+          if (listing) {
+            setFormData({
+              title: listing.title || '',
+              price: listing.price?.toString() || '',
+              location: listing.location || '',
+              category: listing.category || 'Electronics',
+              condition: listing.condition || 'Good',
+              description: listing.description || '',
+            });
+            setExistingImages(listing.images || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading sell page:', error);
+        toast.error('Something went wrong while loading the page');
+      } finally {
+        setCheckingProfile(false);
+      }
     };
 
-    if (editId !== null) {
-      loadData();
-    }
+    loadData();
   }, [editId, router]);
 
   if (checkingProfile) {
-    return <div className="p-8 text-center">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      setNewImages((prev) => [...prev, ...files].slice(0, 5 - existingImages.length));
+      setNewImages(prev => [...prev, ...files].slice(0, 5 - existingImages.length));
     }
   };
 
   const removeNewImage = (index: number) => {
-    setNewImages((prev) => prev.filter((_, i) => i !== index));
+    setNewImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const moveImage = (index: number, direction: 'left' | 'right') => {
@@ -273,6 +281,7 @@ export default function CreateListingPage() {
             </label>
           </div>
 
+          {/* Image Preview */}
           {(existingImages.length > 0 || newImages.length > 0) && (
             <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
               {existingImages.map((url, index) => (
