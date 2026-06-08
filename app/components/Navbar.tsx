@@ -1,15 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { Heart, ShoppingCart, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Heart, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [cartCount, setCartCount] = useState(0);
 
-  // Check auth status
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -18,7 +17,6 @@ export default function Navbar() {
     getUser();
   }, []);
 
-  // Get cart count
   useEffect(() => {
     const updateCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
