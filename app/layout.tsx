@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { Toaster } from "sonner";
-import Navbar from "./components/Navbar";   // ← Added
-// import Footer from "./components/Footer"; // Uncomment if you have a Footer component
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";   // ← Added Footer
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -53,11 +53,11 @@ export default function RootLayout({
         ></script>
       </head>
       <body className="bg-gray-50">
-        <Navbar />                    {/* ← Added back */}
+        <Navbar />
         
         {children}
         
-        {/* <Footer /> */}            {/* Uncomment if you have a Footer component */}
+        <Footer />                    {/* ← Footer added back */}
         
         {/* Sonner Toast Notifications */}
         <Toaster position="top-center" richColors closeButton />
