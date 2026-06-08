@@ -5,167 +5,129 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface ReportModalProps {
-  isOpen: boolean;
+  listingId: string;
   onClose: () => void;
-  targetType: 'listing' | 'user';
-  targetId: string;
-  targetName?: string;
 }
 
 const REPORT_REASONS = [
-  'Fraud / Scam',
+  'Fake or misleading listing',
+  'Scam / Fraud',
   'Inappropriate content',
-  'Spam or misleading information',
-  'Counterfeit or fake item',
-  'Offensive language or behavior',
+  'Duplicate listing',
+  'Seller is unresponsive',
   'Other',
 ];
 
-export default function ReportModal({
-  isOpen,
-  onClose,
-  targetType,
-  targetId,
-  targetName,
-}: ReportModalProps) {
+export default function ReportModal({ listingId, onClose }: ReportModalProps) {
   const [selectedReason, setSelectedReason] = useState('');
-  const [comment, setComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [customReason, setCustomReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSubmit = async () => {
     if (!selectedReason) {
-      toast.error('Please select a reason for reporting');
+      toast.error('Please select a reason');
       return;
     }
 
-    setSubmitting(true);
+    const finalReason = selectedReason === 'Other' ? customReason.trim() : selectedReason;
+
+    if (selectedReason === 'Other' && !finalReason) {
+      toast.error('Please enter a reason');
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        toast.error('Please log in to submit a report');
-        setSubmitting(false);
-        return;
-      }
+      const { error } = await supabase.from('reports').insert({
+        listing_id: listingId,
+        reporter_id: user?.id || null,
+        reason: finalReason,
+        status: 'pending',
+      });
 
-      const reportData: any = {
-        reporter_id: user.id,
-        reason: selectedReason,
-        comment: comment.trim() || null,
-      };
+      if (error) throw error;
 
-      if (targetType === 'listing') {
-        reportData.reported_listing_id = targetId;
-      } else {
-        reportData.reported_user_id = targetId;
-      }
-
-      const { error } = await supabase.from('reports').insert(reportData);
-
-      if (error) {
-        throw error;
-      }
-
-      toast.success('Report submitted successfully. Thank you for helping keep DirectWA safe.');
-      
-      // Reset form and close
-      setSelectedReason('');
-      setComment('');
-      onClose();
-
+      setSubmitted(true);
+      toast.success('Thank you. Your report has been submitted.');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to submit report. Please try again.');
+      toast.error(error.message || 'Failed to submit report');
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (!submitting) {
-      setSelectedReason('');
-      setComment('');
-      onClose();
+      setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-[#1E3A5F]">
-            Report {targetType === 'listing' ? 'Listing' : 'Seller'}
-          </h2>
-          <button 
-            onClick={handleClose} 
-            disabled={submitting}
-            className="text-gray-500 hover:text-gray-700 text-2xl disabled:opacity-50"
-          >
-            ×
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+        {!submitted ? (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-[#1E3A5F]">Report Listing</h2>
+              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+            </div>
 
-        {targetName && (
-          <p className="text-sm text-gray-600 mb-4">
-            Reporting: <span className="font-medium">{targetName}</span>
-          </p>
-        )}
+            <p className="text-gray-600 mb-4">Why are you reporting this listing?</p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium mb-2">Reason for reporting *</label>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-6">
               {REPORT_REASONS.map((reason) => (
-                <label key={reason} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reason"
-                    value={reason}
-                    checked={selectedReason === reason}
-                    onChange={(e) => setSelectedReason(e.target.value)}
-                    className="accent-[#2E8B57]"
-                    disabled={submitting}
-                  />
-                  <span className="text-sm">{reason}</span>
-                </label>
+                <button
+                  key={reason}
+                  onClick={() => setSelectedReason(reason)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
+                    selectedReason === reason 
+                      ? 'border-[#2E8B57] bg-[#2E8B57]/10 text-[#2E8B57]' 
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {reason}
+                </button>
               ))}
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Additional details (optional)</label>
-            <textarea
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              rows={3}
-              disabled={submitting}
-              className="w-full border rounded-2xl px-4 py-3 text-sm disabled:bg-gray-50"
-              placeholder="Please provide more information if needed..."
-            />
-          </div>
+            {selectedReason === 'Other' && (
+              <div className="mb-6">
+                <textarea
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Please describe the issue..."
+                  className="w-full border rounded-xl px-4 py-3 h-24 resize-none"
+                />
+              </div>
+            )}
 
-          <div className="flex gap-3 pt-2">
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 py-3 border border-gray-300 rounded-xl font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading || !selectedReason}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-xl font-semibold"
+              >
+                {loading ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-6">
+            <div className="text-5xl mb-4">✅</div>
+            <h3 className="text-xl font-semibold mb-2">Report Submitted</h3>
+            <p className="text-gray-600 mb-6">Thank you for helping keep DirectWA safe.</p>
             <button
-              type="button"
-              onClick={handleClose}
-              disabled={submitting}
-              className="flex-1 border border-gray-300 py-3 rounded-xl font-medium hover:bg-gray-50 disabled:opacity-50"
+              onClick={onClose}
+              className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-8 py-3 rounded-xl font-semibold"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || !selectedReason}
-              className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white py-3 rounded-xl font-semibold transition-colors"
-            >
-              {submitting ? 'Submitting Report...' : 'Submit Report'}
+              Close
             </button>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
