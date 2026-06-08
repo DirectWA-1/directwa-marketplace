@@ -5,20 +5,21 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 interface ReportModalProps {
-  listingId: string;
+  targetType: 'listing' | 'user';
+  targetId: string;
   onClose: () => void;
 }
 
 const REPORT_REASONS = [
-  'Fake or misleading listing',
+  'Fake or misleading',
   'Scam / Fraud',
   'Inappropriate content',
-  'Duplicate listing',
-  'Seller is unresponsive',
+  'Duplicate',
+  'Seller unresponsive',
   'Other',
 ];
 
-export default function ReportModal({ listingId, onClose }: ReportModalProps) {
+export default function ReportModal({ targetType, targetId, onClose }: ReportModalProps) {
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,8 @@ export default function ReportModal({ listingId, onClose }: ReportModalProps) {
       const { data: { user } } = await supabase.auth.getUser();
 
       const { error } = await supabase.from('reports').insert({
-        listing_id: listingId,
+        target_type: targetType,
+        target_id: targetId,
         reporter_id: user?.id || null,
         reason: finalReason,
         status: 'pending',
@@ -52,7 +54,7 @@ export default function ReportModal({ listingId, onClose }: ReportModalProps) {
       if (error) throw error;
 
       setSubmitted(true);
-      toast.success('Thank you. Your report has been submitted.');
+      toast.success('Report submitted. Thank you!');
     } catch (error: any) {
       toast.error(error.message || 'Failed to submit report');
     } finally {
@@ -66,11 +68,13 @@ export default function ReportModal({ listingId, onClose }: ReportModalProps) {
         {!submitted ? (
           <>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-[#1E3A5F]">Report Listing</h2>
-              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+              <h2 className="text-xl font-semibold text-[#1E3A5F]">
+                Report {targetType === 'listing' ? 'Listing' : 'Seller'}
+              </h2>
+              <button onClick={onClose} className="text-2xl text-gray-500 hover:text-gray-700">×</button>
             </div>
 
-            <p className="text-gray-600 mb-4">Why are you reporting this listing?</p>
+            <p className="text-gray-600 mb-4">Why are you reporting this?</p>
 
             <div className="space-y-2 mb-6">
               {REPORT_REASONS.map((reason) => (

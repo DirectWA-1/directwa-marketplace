@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import WishlistButton from '@/app/components/WishlistButton';
-import ReportModal from '@/app/components/ReportModal'; // Make sure this file exists
+import ReportModal from '@/app/components/ReportModal';
 
 interface Listing {
   id: string;
@@ -37,7 +37,6 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [user, setUser] = useState<any>(null);
-
   const [showReportModal, setShowReportModal] = useState(false);
 
   const [rating, setRating] = useState(5);
@@ -170,17 +169,16 @@ export default function ListingDetail() {
           <div className="flex items-center gap-3 mb-3 flex-wrap">
             {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
             {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
-            
             <WishlistButton listingId={listing.id} />
           </div>
 
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-bold text-[#1E3A5F]">{listing.title}</h1>
             
-            {/* Report Listing Button (Ribbon Style) */}
+            {/* Report Button */}
             <button
               onClick={() => setShowReportModal(true)}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl font-medium transition-colors"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl font-medium"
             >
               🚩 Report Listing
             </button>
@@ -197,7 +195,6 @@ export default function ListingDetail() {
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          {/* Seller Info */}
           <div className="mb-6">
             <p className="text-sm text-gray-500 mb-1">Sold by</p>
             <Link href={`/seller/${listing.user_id}`} className="text-[#2E8B57] hover:underline font-medium text-lg">
@@ -278,14 +275,15 @@ export default function ListingDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
+          <p className="text-gray-500">No reviews yet.</p>
         )}
       </div>
 
       {/* Report Modal */}
       {showReportModal && listing && (
         <ReportModal
-          listingId={listing.id}
+          targetType="listing"
+          targetId={listing.id}
           onClose={() => setShowReportModal(false)}
         />
       )}

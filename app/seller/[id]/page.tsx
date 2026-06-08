@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 import ReportModal from '@/app/components/ReportModal';
 
 interface Seller {
@@ -33,15 +32,12 @@ export default function SellerProfile() {
   const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
-    if (sellerId) {
-      fetchSellerData();
-    }
+    if (sellerId) fetchSellerData();
   }, [sellerId]);
 
   const fetchSellerData = async () => {
     setLoading(true);
 
-    // Fetch seller profile
     const { data: sellerData } = await supabase
       .from('profiles')
       .select('*')
@@ -50,7 +46,6 @@ export default function SellerProfile() {
 
     if (sellerData) setSeller(sellerData);
 
-    // Fetch seller's active listings
     const { data: listingsData } = await supabase
       .from('listings')
       .select('id, title, price, images, created_at')
@@ -59,7 +54,6 @@ export default function SellerProfile() {
       .order('created_at', { ascending: false });
 
     if (listingsData) setListings(listingsData);
-
     setLoading(false);
   };
 
@@ -72,7 +66,7 @@ export default function SellerProfile() {
         ← Back to listings
       </Link>
 
-      {/* Seller Info */}
+      {/* Seller Header */}
       <div className="bg-white border rounded-2xl p-8 mb-8">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
@@ -86,12 +80,10 @@ export default function SellerProfile() {
           </div>
 
           <div className="flex-1">
-            <div className="flex items-start justify-between">
+            <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-3xl font-bold text-[#1E3A5F]">{seller.full_name}</h1>
-                {seller.location && (
-                  <p className="text-gray-600 mt-1">📍 {seller.location}</p>
-                )}
+                {seller.location && <p className="text-gray-600 mt-1">📍 {seller.location}</p>}
               </div>
 
               {/* Report Seller Button */}
@@ -103,14 +95,12 @@ export default function SellerProfile() {
               </button>
             </div>
 
-            {seller.bio && (
-              <p className="mt-4 text-gray-700 leading-relaxed">{seller.bio}</p>
-            )}
+            {seller.bio && <p className="mt-4 text-gray-700 leading-relaxed">{seller.bio}</p>}
           </div>
         </div>
       </div>
 
-      {/* Seller's Listings */}
+      {/* Listings */}
       <div>
         <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">
           Active Listings ({listings.length})
@@ -118,24 +108,19 @@ export default function SellerProfile() {
 
         {listings.length === 0 ? (
           <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">
-            This seller has no active listings right now.
+            This seller has no active listings.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {listings.map((listing) => {
               const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
-
               return (
                 <Link 
                   key={listing.id} 
                   href={`/listings/${listing.id}`}
                   className="bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group"
                 >
-                  <img 
-                    src={image} 
-                    alt={listing.title} 
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
-                  />
+                  <img src={image} alt={listing.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform" />
                   <div className="p-5">
                     <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">{listing.title}</h3>
                     <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
@@ -150,7 +135,8 @@ export default function SellerProfile() {
       {/* Report Modal */}
       {showReportModal && seller && (
         <ReportModal
-          listingId={seller.id}
+          targetType="user"
+          targetId={seller.id}
           onClose={() => setShowReportModal(false)}
         />
       )}
