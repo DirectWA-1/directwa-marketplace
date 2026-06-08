@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,10 +17,9 @@ interface FormData {
   description: string;
 }
 
-export default function SellPage() {
+function SellForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const editId = searchParams.get('edit');
+  const [editId, setEditId] = useState<string | null>(null);
 
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -38,18 +37,22 @@ export default function SellPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  // Load user + profile + existing listing (if editing)
+  // Get editId safely
   useEffect(() => {
-    const loadData = async () => {
+    const params = new URLSearchParams(window.location.search);
+    setEditId(params.get('edit'));
+  }, []);
+
+  // Load everything inside useEffect
+  useEffect(() => {
+    const loadEverything = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-
         if (!user) {
           router.push('/login');
           return;
         }
 
-        // Check if user has completed seller profile
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
@@ -61,7 +64,6 @@ export default function SellPage() {
           return;
         }
 
-        // If editing, load existing listing
         if (editId) {
           setIsEditing(true);
           const { data: listing } = await supabase
@@ -84,14 +86,16 @@ export default function SellPage() {
           }
         }
       } catch (error) {
-        console.error('Error loading sell page:', error);
-        toast.error('Something went wrong while loading the page');
+        console.error(error);
+        toast.error('Failed to load page');
       } finally {
         setCheckingProfile(false);
       }
     };
 
-    loadData();
+    if (editId !== null) {
+      loadEverything();
+    }
   }, [editId, router]);
 
   if (checkingProfile) {
@@ -146,7 +150,6 @@ export default function SellPage() {
         return;
       }
 
-      // Upload new images
       let uploadedUrls: string[] = [];
       for (const file of newImages) {
         const fileExt = file.name.split('.').pop();
@@ -167,7 +170,6 @@ export default function SellPage() {
       const finalImages = [...existingImages, ...uploadedUrls];
 
       if (isEditing && editId) {
-        // Update existing listing
         const { error } = await supabase
           .from('listings')
           .update({
@@ -185,7 +187,6 @@ export default function SellPage() {
         if (error) throw error;
         toast.success('Listing updated successfully!');
       } else {
-        // Create new listing
         const { error } = await supabase.from('listings').insert({
           user_id: user.id,
           title: formData.title.trim(),
@@ -281,7 +282,6 @@ export default function SellPage() {
             </label>
           </div>
 
-          {/* Image Preview */}
           {(existingImages.length > 0 || newImages.length > 0) && (
             <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
               {existingImages.map((url, index) => (
@@ -318,5 +318,21 @@ export default function SellPage() {
         </button>
       </form>
     </div>
+  );
+}
+
+// Wrap with Suspense as extra protection
+export default function SellPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SellForm />
+    </Suspense>
   );
 }
