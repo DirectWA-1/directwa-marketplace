@@ -2,8 +2,15 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { Toaster } from "sonner";
+import Navbar from "./components/Navbar";   // ← Added
+// import Footer from "./components/Footer"; // Uncomment if you have a Footer component
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : "http://localhost:3000"
+  ),
   title: {
     default: "DirectWA - Buy & Sell Locally in South Africa",
     template: "%s | DirectWA",
@@ -46,14 +53,14 @@ export default function RootLayout({
         ></script>
       </head>
       <body className="bg-gray-50">
+        <Navbar />                    {/* ← Added back */}
+        
         {children}
         
+        {/* <Footer /> */}            {/* Uncomment if you have a Footer component */}
+        
         {/* Sonner Toast Notifications */}
-        <Toaster 
-          position="top-center" 
-          richColors 
-          closeButton 
-        />
+        <Toaster position="top-center" richColors closeButton />
         
         <Analytics />
       </body>
