@@ -57,7 +57,40 @@ export default function SellerProfile() {
     setLoading(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading seller profile...</div>;
+  // ==================== SKELETON LOADER ====================
+  if (loading) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* Seller Header Skeleton */}
+        <div className="bg-white border rounded-2xl p-8 mb-8 animate-pulse">
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-24 h-24 rounded-full bg-gray-200 flex-shrink-0" />
+            <div className="flex-1 space-y-3">
+              <div className="h-8 w-2/3 bg-gray-200 rounded" />
+              <div className="h-5 w-1/3 bg-gray-200 rounded" />
+              <div className="h-4 w-full bg-gray-200 rounded" />
+              <div className="h-4 w-5/6 bg-gray-200 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Listings Skeleton */}
+        <div className="h-8 w-48 bg-gray-200 rounded mb-6 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white border rounded-2xl overflow-hidden animate-pulse">
+              <div className="w-full h-48 bg-gray-200" />
+              <div className="p-5 space-y-3">
+                <div className="h-5 bg-gray-200 rounded w-3/4" />
+                <div className="h-7 bg-gray-200 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (!seller) return <div className="p-8 text-center">Seller not found.</div>;
 
   return (
@@ -100,7 +133,7 @@ export default function SellerProfile() {
         </div>
       </div>
 
-      {/* Listings */}
+      {/* Seller's Listings */}
       <div>
         <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">
           Active Listings ({listings.length})
@@ -114,13 +147,18 @@ export default function SellerProfile() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {listings.map((listing) => {
               const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
+
               return (
                 <Link 
                   key={listing.id} 
                   href={`/listings/${listing.id}`}
                   className="bg-white border rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group"
                 >
-                  <img src={image} alt={listing.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform" />
+                  <img 
+                    src={image} 
+                    alt={listing.title} 
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
+                  />
                   <div className="p-5">
                     <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">{listing.title}</h3>
                     <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>

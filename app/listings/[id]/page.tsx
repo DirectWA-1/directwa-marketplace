@@ -129,7 +129,43 @@ export default function ListingDetail() {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  // ==================== SKELETON LOADER ====================
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="h-5 w-32 bg-gray-200 rounded mb-6 animate-pulse" />
+
+        <div className="grid md:grid-cols-2 gap-10">
+          {/* Image Skeleton */}
+          <div>
+            <div className="w-full aspect-[4/3] bg-gray-200 rounded-2xl animate-pulse" />
+            <div className="flex gap-3 mt-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-20 h-20 bg-gray-200 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          </div>
+
+          {/* Info Skeleton */}
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="h-7 w-24 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-7 w-20 bg-gray-200 rounded-full animate-pulse" />
+            </div>
+            <div className="h-9 w-3/4 bg-gray-200 rounded animate-pulse" />
+            <div className="h-8 w-1/2 bg-gray-200 rounded animate-pulse" />
+            <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse" />
+
+            <div className="pt-4 space-y-3">
+              <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
+              <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
 
   const images = listing.images?.length > 0 
@@ -174,8 +210,6 @@ export default function ListingDetail() {
 
           <div className="flex items-start justify-between gap-4">
             <h1 className="text-3xl font-bold text-[#1E3A5F]">{listing.title}</h1>
-            
-            {/* Report Button */}
             <button
               onClick={() => setShowReportModal(true)}
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl font-medium"

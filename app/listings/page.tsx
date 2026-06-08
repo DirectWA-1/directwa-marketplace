@@ -22,7 +22,7 @@ export default function ListingsPage() {
 
   useEffect(() => {
     const fetchListings = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('listings')
         .select('id, title, price, location, category, images')
         .eq('status', 'active')
@@ -45,14 +45,23 @@ export default function ListingsPage() {
     } else {
       const filtered = listings.filter((listing) =>
         listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        listing.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        listing.category.toLowerCase().includes(searchTerm.toLowerCase())
+        listing.location.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredListings(filtered);
     }
   }, [searchTerm, listings]);
 
-  if (loading) return <div className="p-8 text-center">Loading listings...</div>;
+  // Skeleton Loader Component
+  const SkeletonCard = () => (
+    <div className="bg-white border rounded-2xl overflow-hidden animate-pulse">
+      <div className="w-full h-48 bg-gray-200" />
+      <div className="p-5 space-y-3">
+        <div className="h-5 bg-gray-200 rounded w-3/4" />
+        <div className="h-7 bg-gray-200 rounded w-1/2" />
+        <div className="h-4 bg-gray-200 rounded w-2/3" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -73,7 +82,14 @@ export default function ListingsPage() {
         </div>
       </div>
 
-      {filteredListings.length === 0 ? (
+      {loading ? (
+        // Skeleton Loading State
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <SkeletonCard key={index} />
+          ))}
+        </div>
+      ) : filteredListings.length === 0 ? (
         <div className="bg-white border rounded-2xl p-12 text-center">
           <p className="text-gray-600">No listings found matching your search.</p>
         </div>
@@ -84,7 +100,6 @@ export default function ListingsPage() {
 
             return (
               <div key={listing.id} className="bg-white border rounded-2xl overflow-hidden group relative">
-                {/* Wishlist Button */}
                 <div className="absolute top-3 right-3 z-10">
                   <WishlistButton listingId={listing.id} />
                 </div>

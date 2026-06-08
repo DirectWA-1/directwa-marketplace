@@ -72,55 +72,47 @@ export default function SellerDashboard() {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : '0.0';
 
-  // Mark as Sold
-  const handleMarkAsSold = async (id: string) => {
-    if (!confirm('Mark this listing as sold?')) return;
+  // ==================== SKELETON LOADER ====================
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <div className="h-9 w-64 bg-gray-200 rounded animate-pulse" />
+            <div className="h-5 w-80 bg-gray-200 rounded mt-2 animate-pulse" />
+          </div>
+          <div className="h-12 w-40 bg-gray-200 rounded-xl animate-pulse" />
+        </div>
 
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'sold' })
-      .eq('id', id);
+        {/* Stats Skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white border rounded-2xl p-6 animate-pulse">
+              <div className="h-4 w-24 bg-gray-200 rounded" />
+              <div className="h-10 w-16 bg-gray-200 rounded mt-3" />
+            </div>
+          ))}
+        </div>
 
-    if (error) {
-      toast.error('Failed to mark as sold');
-    } else {
-      toast.success('Listing marked as sold');
-      if (user) await fetchListings(user.id);
-    }
-  };
-
-  // Reactivate sold listing
-  const handleReactivate = async (id: string) => {
-    if (!confirm('Reactivate this listing?')) return;
-
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'active' })
-      .eq('id', id);
-
-    if (error) {
-      toast.error('Failed to reactivate listing');
-    } else {
-      toast.success('Listing reactivated');
-      if (user) await fetchListings(user.id);
-    }
-  };
-
-  // Delete listing
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this listing permanently?')) return;
-
-    const { error } = await supabase.from('listings').delete().eq('id', id);
-
-    if (error) {
-      toast.error('Failed to delete listing');
-    } else {
-      toast.success('Listing deleted');
-      if (user) await fetchListings(user.id);
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center">Loading dashboard...</div>;
+        {/* Active Listings Skeleton */}
+        <div className="mb-12">
+          <div className="h-8 w-48 bg-gray-200 rounded mb-6 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-white border rounded-2xl overflow-hidden animate-pulse">
+                <div className="w-full h-48 bg-gray-200" />
+                <div className="p-5 space-y-3">
+                  <div className="h-5 bg-gray-200 rounded w-3/4" />
+                  <div className="h-7 bg-gray-200 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -193,10 +185,10 @@ export default function SellerDashboard() {
                       <Link href={`/sell?edit=${listing.id}`} className="flex-1 text-center px-4 py-2 border border-gray-300 rounded-xl text-sm hover:bg-gray-50">
                         Edit
                       </Link>
-                      <button onClick={() => handleMarkAsSold(listing.id)} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm">
+                      <button className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm">
                         Mark as Sold
                       </button>
-                      <button onClick={() => handleDelete(listing.id)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
+                      <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
                         Delete
                       </button>
                     </div>
@@ -208,7 +200,7 @@ export default function SellerDashboard() {
         )}
       </div>
 
-      {/* Sold Listings with Reactivate */}
+      {/* Sold Listings */}
       <div>
         <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">Sold Listings ({soldListings.length})</h2>
 
@@ -230,18 +222,7 @@ export default function SellerDashboard() {
                     <h3 className="font-semibold line-clamp-2">{listing.title}</h3>
                     <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
                     <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
-
-                    <div className="flex gap-2 mt-4">
-                      <button 
-                        onClick={() => handleReactivate(listing.id)} 
-                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm"
-                      >
-                        Reactivate
-                      </button>
-                      <button onClick={() => handleDelete(listing.id)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm">
-                        Delete
-                      </button>
-                    </div>
+                    <div className="mt-3 text-sm text-green-600 font-medium">✓ Sold</div>
                   </div>
                 </div>
               );
