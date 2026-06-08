@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import WishlistButton from '@/app/components/WishlistButton';
+import ReportModal from '@/app/components/ReportModal'; // Make sure this file exists
 
 interface Listing {
   id: string;
@@ -36,6 +37,8 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [user, setUser] = useState<any>(null);
+
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -164,18 +167,27 @@ export default function ListingDetail() {
 
         {/* Product Info */}
         <div>
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
             {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
             {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
             
-            {/* Wishlist Button */}
             <WishlistButton listingId={listing.id} />
           </div>
 
-          <h1 className="text-3xl font-bold text-[#1E3A5F] mb-3">{listing.title}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-3xl font-bold text-[#1E3A5F]">{listing.title}</h1>
+            
+            {/* Report Listing Button (Ribbon Style) */}
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl font-medium transition-colors"
+            >
+              🚩 Report Listing
+            </button>
+          </div>
 
           {averageRating > 0 && (
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mt-2 mb-4">
               <div className="text-yellow-500 text-xl">{'★'.repeat(Math.round(averageRating))}</div>
               <span className="text-lg font-semibold">{averageRating}</span>
               <span className="text-gray-500">({reviews.length} reviews)</span>
@@ -269,6 +281,14 @@ export default function ListingDetail() {
           <p className="text-gray-500">No reviews yet. Be the first to leave one!</p>
         )}
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && listing && (
+        <ReportModal
+          listingId={listing.id}
+          onClose={() => setShowReportModal(false)}
+        />
+      )}
     </div>
   );
 }
