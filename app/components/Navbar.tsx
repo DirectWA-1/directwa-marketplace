@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Heart } from 'lucide-react';
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -25,49 +26,81 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Live cart count
   useEffect(() => {
     const updateCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
       setCartCount(cart.length);
     };
-
     updateCartCount();
     window.addEventListener('storage', updateCartCount);
     return () => window.removeEventListener('storage', updateCartCount);
   }, []);
 
+  // Live wishlist count
+  useEffect(() => {
+    const fetchWishlistCount = async () => {
+      if (!user) {
+        setWishlistCount(0);
+        return;
+      }
+      const { count } = await supabase
+        .from('wishlists')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      setWishlistCount(count || 0);
+    };
+
+    fetchWishlistCount();
+
+    // Optional: real-time updates
+    const channel = supabase
+      .channel('wishlist-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlists' }, fetchWishlistCount)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/" className="text-2xl font-bold text-[#1E3A5F]">
-            DirectWA
-          </Link>
+          <Link href="/" className="text-2xl font-bold text-[#1E3A5F]">DirectWA</Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2 text-sm font-medium">
-            <Link href="/listings" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">
-              Browse
-            </Link>
-            <Link href="/sell" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">
-              Sell
-            </Link>
+            <Link href="/listings" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">Browse</Link>
+            <Link href="/sell" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">Sell</Link>
 
             {user && (
               <>
-                <Link href="/my-listings" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">
-                  My Listings
-                </Link>
-                <Link href="/seller/setup" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">
-                  Seller Profile
-                </Link>
+                <Link href="/my-listings" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">My Listings</Link>
+                <Link href="/seller/dashboard" className="px-4 py-2 text-gray-700 hover:text-[#1E3A5F] hover:bg-gray-100 rounded-xl transition-colors">Seller Profile</Link>
               </>
             )}
 
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
-            {/* Cart */}
+            {/* Wishlist Icon */}
+            <Link href="/wishlist" className="relative px-3 py-2 text-gray-700 hover:text-[#1E3A5F] flex items-center">
+              <Heart className="w-5 h-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Cart Icon */}
             <Link href="/cart" className="relative px-3 py-2 text-gray-700 hover:text-[#1E3A5F] flex items-center">
               <ShoppingCart className="w-5 h-5" />
               {cartCount > 0 && (
@@ -79,25 +112,20 @@ export default function Navbar() {
 
             {/* Auth Buttons */}
             {user ? (
-              <Link href="/my-listings" className="px-5 py-2 bg-[#2E8B57] hover:bg-[#246B46] text-white rounded-xl font-medium">
-                My Listings
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link href="/my-listings" className="px-5 py-2 bg-[#2E8B57] hover:bg-[#246B46] text-white rounded-xl font-medium">My Listings</Link>
+                <button onClick={handleLogout} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors">Logout</button>
+              </div>
             ) : (
               <>
-                <Link href="/login" className="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">
-                  Login
-                </Link>
-                <Link href="/signup" className="px-5 py-2 bg-[#2E8B57] hover:bg-[#246B46] text-white rounded-xl font-medium">
-                  Sign Up
-                </Link>
+                <Link href="/login" className="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors">Login</Link>
+                <Link href="/signup" className="px-5 py-2 bg-[#2E8B57] hover:bg-[#246B46] text-white rounded-xl font-medium">Sign Up</Link>
               </>
             )}
           </div>
 
           {/* Mobile Menu Button */}
-          <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2 text-gray-700">
-            {isOpen ? '✕' : '☰'}
-          </button>
+          <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2 text-gray-700">{isOpen ? '✕' : '☰'}</button>
         </div>
 
         {/* Mobile Menu */}
@@ -105,22 +133,20 @@ export default function Navbar() {
           <div className="md:hidden pb-4 text-sm border-t pt-4">
             <Link href="/listings" className="block px-4 py-3">Browse</Link>
             <Link href="/sell" className="block px-4 py-3">Sell</Link>
-            
             {user && (
               <>
                 <Link href="/my-listings" className="block px-4 py-3">My Listings</Link>
-                <Link href="/seller/setup" className="block px-4 py-3">Seller Profile</Link>
+                <Link href="/seller/dashboard" className="block px-4 py-3">Seller Profile</Link>
+                <Link href="/wishlist" className="block px-4 py-3">Wishlist ({wishlistCount})</Link>
               </>
             )}
-
-            <Link href="/cart" className="block px-4 py-3 flex items-center gap-2">
-              Cart {cartCount > 0 && <span className="bg-[#2E8B57] text-white text-xs px-2 py-0.5 rounded-full">{cartCount}</span>}
-            </Link>
-
+            <Link href="/cart" className="block px-4 py-3">Cart ({cartCount})</Link>
             <div className="h-px bg-gray-200 my-2" />
-
             {user ? (
-              <Link href="/my-listings" className="block mx-4 bg-[#2E8B57] text-white text-center py-3 rounded-xl">My Listings</Link>
+              <div className="px-4 space-y-2">
+                <Link href="/my-listings" className="block bg-[#2E8B57] text-white text-center py-3 rounded-xl">My Listings</Link>
+                <button onClick={handleLogout} className="w-full text-center py-3 text-gray-600 hover:bg-gray-100 rounded-xl">Logout</button>
+              </div>
             ) : (
               <>
                 <Link href="/login" className="block px-4 py-3">Login</Link>

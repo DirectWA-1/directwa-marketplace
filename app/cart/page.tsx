@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
@@ -16,7 +17,6 @@ export default function CartPage() {
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
-    // Ensure all items have quantity
     const normalized = savedCart.map((item: any) => ({
       ...item,
       quantity: item.quantity || 1,
@@ -41,6 +41,7 @@ export default function CartPage() {
     const updated = cart.filter(item => item.id !== id);
     setCart(updated);
     localStorage.setItem('cart', JSON.stringify(updated));
+    toast.info('Item removed from cart');
   };
 
   const clearCart = () => {
@@ -49,6 +50,7 @@ export default function CartPage() {
 
     setCart([]);
     localStorage.removeItem('cart');
+    toast.info('Cart cleared');
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -141,7 +143,7 @@ export default function CartPage() {
             </div>
 
             <button 
-              onClick={() => alert('Checkout coming soon!')}
+              onClick={() => toast.info('Checkout coming soon!')}
               className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-3.5 rounded-xl mb-3"
             >
               Proceed to Checkout

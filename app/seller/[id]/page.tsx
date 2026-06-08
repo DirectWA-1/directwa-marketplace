@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import ReportModal from '@/app/components/ReportModal';
 
 interface Listing {
   id: string;
@@ -38,6 +39,8 @@ export default function SellerProfile() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  const [showReportModal, setShowReportModal] = useState(false);
+
   useEffect(() => {
     if (sellerId) {
       fetchSellerData();
@@ -47,7 +50,6 @@ export default function SellerProfile() {
   const fetchSellerData = async () => {
     setLoading(true);
 
-    // Fetch seller info
     const { data: sellerData } = await supabase
       .from('auth.users')
       .select('id, email')
@@ -56,7 +58,6 @@ export default function SellerProfile() {
 
     if (sellerData) setSeller(sellerData);
 
-    // Fetch active listings
     const { data: listingsData } = await supabase
       .from('listings')
       .select('id, title, price, location, category, images, created_at')
@@ -66,7 +67,6 @@ export default function SellerProfile() {
 
     if (listingsData) setListings(listingsData);
 
-    // Fetch reviews
     const { data: reviewsData } = await supabase
       .from('reviews')
       .select('id, rating, comment, created_at')
@@ -94,22 +94,31 @@ export default function SellerProfile() {
           ← Back to listings
         </Link>
 
-        <div className="mt-6">
-          <h1 className="text-3xl font-bold text-[#1E3A5F]">Seller Profile</h1>
-          {seller && <p className="text-gray-600 mt-1">{seller.email}</p>}
+        <div className="mt-6 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-[#1E3A5F]">Seller Profile</h1>
+            {seller && <p className="text-gray-600 mt-1">{seller.email}</p>}
 
-          {/* Rating */}
-          {totalReviews > 0 ? (
-            <div className="flex items-center gap-3 mt-3">
-              <div className="flex items-center">
-                <span className="text-yellow-500 text-2xl">{'★'.repeat(Math.round(averageRating))}</span>
-                <span className="text-2xl font-bold ml-1 text-[#1E3A5F]">{averageRating}</span>
+            {totalReviews > 0 ? (
+              <div className="flex items-center gap-3 mt-3">
+                <div className="flex items-center">
+                  <span className="text-yellow-500 text-2xl">{'★'.repeat(Math.round(averageRating))}</span>
+                  <span className="text-2xl font-bold ml-1 text-[#1E3A5F]">{averageRating}</span>
+                </div>
+                <span className="text-gray-500">({totalReviews} review{totalReviews > 1 ? 's' : ''})</span>
               </div>
-              <span className="text-gray-500">({totalReviews} review{totalReviews > 1 ? 's' : ''})</span>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 mt-2">No reviews yet</p>
-          )}
+            ) : (
+              <p className="text-sm text-gray-500 mt-2">No reviews yet</p>
+            )}
+          </div>
+
+          {/* Report Seller Button */}
+          <button 
+            onClick={() => setShowReportModal(true)}
+            className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1 mt-1"
+          >
+            🚩 Report Seller
+          </button>
         </div>
       </div>
 
@@ -197,6 +206,15 @@ export default function SellerProfile() {
           </div>
         )}
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetType="user"
+        targetId={sellerId}
+        targetName={seller?.email}
+      />
     </div>
   );
 }

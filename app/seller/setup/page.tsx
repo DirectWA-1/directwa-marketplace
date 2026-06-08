@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function SellerSetup() {
   const router = useRouter();
@@ -25,7 +26,6 @@ export default function SellerSetup() {
       }
       setUser(user);
 
-      // Pre-fill if profile already exists
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -68,10 +68,10 @@ export default function SellerSetup() {
       });
 
     if (error) {
-      alert('Error saving profile: ' + error.message);
+      toast.error('Error saving profile: ' + error.message);
     } else {
-      alert('Profile saved successfully!');
-      router.push('/my-listings');
+      toast.success('Profile saved successfully!');
+      setTimeout(() => router.push('/my-listings'), 1200);
     }
     setSaving(false);
   };
@@ -86,46 +86,20 @@ export default function SellerSetup() {
       <form onSubmit={handleSubmit} className="bg-white border rounded-2xl p-8 space-y-6">
         <div>
           <label className="block text-sm font-medium mb-1.5">Full Name *</label>
-          <input
-            type="text"
-            name="full_name"
-            value={formData.full_name}
-            onChange={handleChange}
-            className="w-full border rounded-xl px-4 py-3"
-            placeholder="Your full name"
-            required
-          />
+          <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="Your full name" required />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1.5">Location</label>
-          <input
-            type="text"
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            className="w-full border rounded-xl px-4 py-3"
-            placeholder="Johannesburg, South Africa"
-          />
+          <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="Johannesburg, South Africa" />
         </div>
 
         <div>
           <label className="block text-sm font-medium mb-1.5">Bio / About You</label>
-          <textarea
-            name="bio"
-            value={formData.bio}
-            onChange={handleChange}
-            rows={4}
-            className="w-full border rounded-2xl px-4 py-3"
-            placeholder="Tell buyers about yourself..."
-          />
+          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full border rounded-2xl px-4 py-3" placeholder="Tell buyers about yourself..." />
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-3.5 rounded-xl disabled:opacity-70"
-        >
+        <button type="submit" disabled={saving} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-3.5 rounded-xl disabled:opacity-70">
           {saving ? 'Saving...' : 'Save Profile'}
         </button>
       </form>

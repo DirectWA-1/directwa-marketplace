@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
+import WishlistButton from '@/app/components/WishlistButton';
 
 interface Listing {
   id: string;
@@ -33,13 +35,11 @@ export default function ListingDetail() {
   const [averageRating, setAverageRating] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [user, setUser] = useState<any>(null);
 
-  // Review form states
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [reviewMessage, setReviewMessage] = useState('');
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     if (id) {
@@ -84,10 +84,10 @@ export default function ListingDetail() {
     if (!listing) return;
 
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-    const existingItem = cart.find((item: any) => item.id === listing.id);
+    const existing = cart.find((item: any) => item.id === listing.id);
 
-    if (existingItem) {
-      existingItem.quantity = (existingItem.quantity || 1) + 1;
+    if (existing) {
+      existing.quantity = (existing.quantity || 1) + 1;
     } else {
       cart.push({
         id: listing.id,
@@ -99,7 +99,7 @@ export default function ListingDetail() {
     }
 
     localStorage.setItem('cart', JSON.stringify(cart));
-    alert('Added to cart!');
+    toast.success('Added to cart!');
   };
 
   const submitReview = async (e: React.FormEvent) => {
@@ -107,7 +107,6 @@ export default function ListingDetail() {
     if (!user || !listing) return;
 
     setSubmitting(true);
-    setReviewMessage('');
 
     const { error } = await supabase.from('reviews').insert({
       listing_id: listing.id,
@@ -118,9 +117,9 @@ export default function ListingDetail() {
     });
 
     if (error) {
-      setReviewMessage('Error: ' + error.message);
+      toast.error('Failed to submit review');
     } else {
-      setReviewMessage('Thank you! Your review was submitted.');
+      toast.success('Thank you! Your review was submitted.');
       setComment('');
       setRating(5);
       fetchData();
@@ -165,9 +164,12 @@ export default function ListingDetail() {
 
         {/* Product Info */}
         <div>
-          <div className="flex gap-2 mb-3">
+          <div className="flex items-center gap-3 mb-3">
             {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
             {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
+            
+            {/* Wishlist Button */}
+            <WishlistButton listingId={listing.id} />
           </div>
 
           <h1 className="text-3xl font-bold text-[#1E3A5F] mb-3">{listing.title}</h1>
@@ -183,13 +185,10 @@ export default function ListingDetail() {
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          {/* Seller Info - Now Visible and Clickable */}
+          {/* Seller Info */}
           <div className="mb-6">
             <p className="text-sm text-gray-500 mb-1">Sold by</p>
-            <Link 
-              href={`/seller/${listing.user_id}`} 
-              className="text-[#2E8B57] hover:underline font-medium text-lg"
-            >
+            <Link href={`/seller/${listing.user_id}`} className="text-[#2E8B57] hover:underline font-medium text-lg">
               View Seller Profile →
             </Link>
           </div>
@@ -247,15 +246,9 @@ export default function ListingDetail() {
                 />
               </div>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70"
-              >
+              <button type="submit" disabled={submitting} className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70">
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
-
-              {reviewMessage && <p className="text-sm text-[#2E8B57]">{reviewMessage}</p>}
             </form>
           </div>
         )}

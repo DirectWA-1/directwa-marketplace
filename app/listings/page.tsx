@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import WishlistButton from '@/app/components/WishlistButton';
 
 interface Listing {
   id: string;
@@ -11,268 +12,97 @@ interface Listing {
   location: string;
   category: string;
   images: string[];
-  user_id: string;
-  created_at?: string;
-}
-
-interface Review {
-  listing_id: string;
-  seller_id: string;
-  rating: number;
 }
 
 export default function ListingsPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [sortOption, setSortOption] = useState('newest');
-
-  const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
-
-  const getPlaceholderImage = (category: string) => {
-    const placeholders: { [key: string]: string } = {
-      'Electronics': 'https://picsum.photos/id/20/400/300',
-      'Fashion & Clothing': 'https://picsum.photos/id/1005/400/300',
-      'Home & Garden': 'https://picsum.photos/id/160/400/300',
-      'Vehicles & Parts': 'https://picsum.photos/id/201/400/300',
-      'Other': 'https://picsum.photos/id/251/400/300',
-    };
-    return placeholders[category] || 'https://picsum.photos/id/20/400/300';
-  };
-
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-
-      const { data: listingsData } = await supabase
+    const fetchListings = async () => {
+      const { data, error } = await supabase
         .from('listings')
-        .select('*')
+        .select('id, title, price, location, category, images')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (listingsData) {
-        setListings(listingsData);
-        setFilteredListings(listingsData);
-
-        const listingIds = listingsData.map(l => l.id);
-        if (listingIds.length > 0) {
-          const { data: reviewsData } = await supabase
-            .from('reviews')
-            .select('listing_id, seller_id, rating')
-            .in('listing_id', listingIds);
-
-          if (reviewsData) setReviews(reviewsData);
-        }
+      if (data) {
+        setListings(data);
+        setFilteredListings(data);
       }
       setLoading(false);
     };
 
-    fetchData();
+    fetchListings();
   }, []);
 
-  const getAverageRating = (listingId: string) => {
-    const listingReviews = reviews.filter(r => r.listing_id === listingId);
-    if (listingReviews.length === 0) return 0;
-    const avg = listingReviews.reduce((sum, r) => sum + r.rating, 0) / listingReviews.length;
-    return Math.round(avg * 10) / 10;
-  };
-
-  const getSellerRating = (sellerId: string) => {
-    const sellerReviews = reviews.filter(r => r.seller_id === sellerId);
-    if (sellerReviews.length === 0) return 0;
-    const avg = sellerReviews.reduce((sum, r) => sum + r.rating, 0) / sellerReviews.length;
-    return Math.round(avg * 10) / 10;
-  };
-
-  const getSellerReviewCount = (sellerId: string) => {
-    return reviews.filter(r => r.seller_id === sellerId).length;
-  };
-
+  // Search filter
   useEffect(() => {
-    let result = [...listings];
-
-    if (searchTerm) {
-      result = result.filter(l => l.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (!searchTerm) {
+      setFilteredListings(listings);
+    } else {
+      const filtered = listings.filter((listing) =>
+        listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        listing.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredListings(filtered);
     }
-    if (selectedCategory) {
-      result = result.filter(l => l.category === selectedCategory);
-    }
-    if (minPrice) result = result.filter(l => l.price >= parseFloat(minPrice));
-    if (maxPrice) result = result.filter(l => l.price <= parseFloat(maxPrice));
-
-    switch (sortOption) {
-      case 'newest':
-        result.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
-        break;
-      case 'price-low':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'title-az':
-        result.sort((a, b) => a.title.localeCompare(b.title));
-        break;
-    }
-
-    setFilteredListings(result);
-  }, [searchTerm, selectedCategory, minPrice, maxPrice, sortOption, listings]);
-
-  const openWhatsApp = (listing: Listing) => {
-    if (typeof window !== "undefined" && (window as any).plausible) {
-      (window as any).plausible("whatsapp_clicked", {
-        props: {
-          listing_id: listing.id,
-          category: listing.category,
-        },
-      });
-    }
-
-    const message = encodeURIComponent(`Hi, I'm interested in your "${listing.title}" on DirectWA.`);
-    window.open(`https://wa.me/27721234567?text=${message}`, '_blank');
-  };
+  }, [searchTerm, listings]);
 
   if (loading) return <div className="p-8 text-center">Loading listings...</div>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-[#1E3A5F]">Browse Listings</h1>
-          <p className="text-gray-600">Discover great deals from our community</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">Browse Listings</h1>
+        
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="Search listings..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full md:w-80 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E8B57]"
+          />
+          <Link href="/sell" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold whitespace-nowrap">
+            Sell an Item
+          </Link>
         </div>
-        <Link href="/sell" className="bg-[#2E8B57] text-white px-5 py-2.5 rounded-xl font-semibold">
-          + Sell Item
-        </Link>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white border rounded-2xl p-6 mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="md:col-span-2">
-            <input type="text" placeholder="Search listings..." className="w-full border rounded-xl px-4 py-3"
-              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          </div>
-          <div>
-            <select className="w-full border rounded-xl px-4 py-3" value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
-              <option value="">All Categories</option>
-              {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            <input type="number" placeholder="Min R" className="w-full border rounded-xl px-4 py-3" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-            <input type="number" placeholder="Max R" className="w-full border rounded-xl px-4 py-3" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
-          </div>
-          <div className="flex gap-2">
-            <select className="w-full border rounded-xl px-4 py-3" value={sortOption} onChange={(e) => setSortOption(e.target.value)}>
-              <option value="newest">Newest First</option>
-              <option value="price-low">Price: Low → High</option>
-              <option value="price-high">Price: High → Low</option>
-              <option value="title-az">Title: A → Z</option>
-            </select>
-            <button onClick={() => { setSearchTerm(''); setSelectedCategory(''); setMinPrice(''); setMaxPrice(''); setSortOption('newest'); }}
-              className="px-4 py-3 text-sm border rounded-xl hover:bg-gray-50">Clear</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mb-4 text-sm text-gray-600">
-        Showing {filteredListings.length} listing{filteredListings.length !== 1 ? 's' : ''}
       </div>
 
       {filteredListings.length === 0 ? (
-        <div className="text-center py-16 bg-white border rounded-2xl">
-          <p className="text-gray-500">No listings found matching your filters.</p>
+        <div className="bg-white border rounded-2xl p-12 text-center">
+          <p className="text-gray-600">No listings found matching your search.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredListings.map((listing) => {
-            const avgRating = getAverageRating(listing.id);
-            const sellerRating = getSellerRating(listing.user_id);
-            const sellerReviewCount = getSellerReviewCount(listing.user_id);
-            const displayImage = listing.images?.[0] || getPlaceholderImage(listing.category);
-            const hasListingReviews = avgRating > 0;
-            const hasSellerReviews = sellerRating > 0;
+            const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
 
             return (
-              <div key={listing.id} className="bg-white rounded-2xl border overflow-hidden hover:shadow-lg transition-shadow group">
-                
-                {/* Image - Clickable to Listing Detail */}
-                <Link href={`/listings/${listing.id}`} className="block">
-                  <div className="relative">
-                    <img 
-                      src={displayImage} 
-                      alt={listing.title} 
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" 
-                    />
-                    {listing.category && (
-                      <div className="absolute top-3 left-3 bg-white/90 text-[#1E3A5F] text-xs font-medium px-3 py-1 rounded-full">
-                        {listing.category}
-                      </div>
-                    )}
-                  </div>
+              <div key={listing.id} className="bg-white border rounded-2xl overflow-hidden group relative">
+                {/* Wishlist Button */}
+                <div className="absolute top-3 right-3 z-10">
+                  <WishlistButton listingId={listing.id} />
+                </div>
+
+                <Link href={`/listings/${listing.id}`}>
+                  <img 
+                    src={image} 
+                    alt={listing.title} 
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
+                  />
                 </Link>
 
                 <div className="p-5">
-                  {/* Title - Clickable to Listing Detail */}
-                  <Link href={`/listings/${listing.id}`} className="block">
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2 hover:text-[#2E8B57] transition-colors">
-                      {listing.title}
-                    </h3>
+                  <Link href={`/listings/${listing.id}`}>
+                    <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">{listing.title}</h3>
                   </Link>
-
-                  {/* Listing Rating */}
-                  {hasListingReviews && (
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <div className="text-yellow-500">{'★'.repeat(Math.round(avgRating))}</div>
-                      <span className="text-sm font-semibold">{avgRating}</span>
-                      <span className="text-xs text-gray-500">
-                        ({reviews.filter(r => r.listing_id === listing.id).length})
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Seller Rating - Clickable to Seller Profile */}
-                  {hasSellerReviews && (
-                    <div className="flex items-center gap-1.5 mb-2 text-xs">
-                      <span className="text-gray-500">Seller:</span>
-                      <Link 
-                        href={`/seller/${listing.user_id}`} 
-                        className="flex items-center gap-1 hover:underline"
-                      >
-                        <div className="text-yellow-500">{'★'.repeat(Math.round(sellerRating))}</div>
-                        <span className="font-medium">{sellerRating}</span>
-                        <span className="text-gray-400">({sellerReviewCount})</span>
-                      </Link>
-                    </div>
-                  )}
-
-                  <div className="text-2xl font-bold text-[#1E3A5F] mb-3">
-                    R{listing.price.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-gray-500 mb-4">📍 {listing.location}</div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="px-5 pb-5 flex gap-2">
-                  <button 
-                    onClick={() => openWhatsApp(listing)} 
-                    className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl text-sm"
-                  >
-                    Chat on WhatsApp
-                  </button>
-                  <Link 
-                    href={`/listings/${listing.id}`} 
-                    className="px-5 py-3 border rounded-xl text-sm font-medium hover:bg-gray-50 flex items-center justify-center"
-                  >
-                    View
-                  </Link>
+                  <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
+                  <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
                 </div>
               </div>
             );
