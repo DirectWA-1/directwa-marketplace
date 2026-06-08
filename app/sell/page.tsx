@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
+// ✅ Fix for Vercel prerender error
+export const dynamic = 'force-dynamic';
+
 interface FormData {
   title: string;
   price: string;
@@ -31,7 +34,7 @@ export default function SellPage() {
   const [newImages, setNewImages] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Load profile + existing listing (if editing)
+  // Load user profile + existing listing (if editing)
   useEffect(() => {
     const loadData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -40,6 +43,7 @@ export default function SellPage() {
         return;
       }
 
+      // Check if user has completed seller profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name')
@@ -51,6 +55,7 @@ export default function SellPage() {
         return;
       }
 
+      // If editing mode, load existing listing data
       if (editId) {
         setIsEditing(true);
         const { data: listing } = await supabase
@@ -79,7 +84,9 @@ export default function SellPage() {
     loadData();
   }, [editId, router]);
 
-  if (checkingProfile) return <div className="p-8 text-center">Loading...</div>;
+  if (checkingProfile) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -93,7 +100,7 @@ export default function SellPage() {
     }
   };
 
-  // Remove new image
+  // Remove newly uploaded image
   const removeNewImage = (index: number) => {
     setNewImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -103,7 +110,7 @@ export default function SellPage() {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Move image left/right (reorder)
+  // Move image left or right (reorder)
   const moveImage = (index: number, direction: 'left' | 'right') => {
     const newIndex = direction === 'left' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= existingImages.length) return;
@@ -146,7 +153,7 @@ export default function SellPage() {
       const finalImages = [...existingImages, ...uploadedUrls];
 
       if (isEditing && editId) {
-        // Update existing listing
+        // UPDATE existing listing
         const { error } = await supabase
           .from('listings')
           .update({
@@ -164,7 +171,7 @@ export default function SellPage() {
         if (error) throw error;
         toast.success('Listing updated successfully!');
       } else {
-        // Create new listing
+        // CREATE new listing
         const { error } = await supabase.from('listings').insert({
           user_id: user.id,
           title: formData.title.trim(),
@@ -202,12 +209,13 @@ export default function SellPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
-        {/* Form Fields */}
+        {/* Title */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Item Title *</label>
           <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" required />
         </div>
 
+        {/* Price & Location */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Price (R) *</label>
@@ -219,6 +227,7 @@ export default function SellPage() {
           </div>
         </div>
 
+        {/* Category & Condition */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Category</label>
@@ -241,12 +250,13 @@ export default function SellPage() {
           </div>
         </div>
 
+        {/* Description */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Description</label>
           <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full border rounded-2xl px-4 py-3" />
         </div>
 
-        {/* Image Section with Reordering */}
+        {/* Image Upload with Reorder + Remove */}
         <div>
           <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
 
@@ -258,8 +268,10 @@ export default function SellPage() {
             </label>
           </div>
 
+          {/* Image Preview Grid */}
           {(existingImages.length > 0 || newImages.length > 0) && (
             <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
+              {/* Existing Images */}
               {existingImages.map((url, index) => (
                 <div key={`existing-${index}`} className="relative group">
                   <img src={url} alt="" className="w-full h-24 object-cover rounded-xl border" />
@@ -274,10 +286,10 @@ export default function SellPage() {
                       <X className="w-3 h-3 text-red-600" />
                     </button>
                   </div>
-                  <div className="text-[10px] text-center mt-1 text-gray-500">Image {index + 1}</div>
                 </div>
               ))}
 
+              {/* New Images */}
               {newImages.map((file, index) => (
                 <div key={`new-${index}`} className="relative group">
                   <img src={URL.createObjectURL(file)} alt="" className="w-full h-24 object-cover rounded-xl border" />
@@ -290,6 +302,7 @@ export default function SellPage() {
           )}
         </div>
 
+        {/* Submit Button */}
         <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-xl text-lg">
           {loading ? (isEditing ? 'Updating...' : 'Publishing...') : (isEditing ? 'Update Listing' : 'Publish Listing')}
         </button>
