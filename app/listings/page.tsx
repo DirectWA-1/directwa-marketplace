@@ -51,7 +51,7 @@ export default function ListingsPage() {
     }
   }, [searchTerm, listings]);
 
-  // Skeleton Loader Component
+  // Skeleton Loader
   const SkeletonCard = () => (
     <div className="bg-white border rounded-2xl overflow-hidden animate-pulse">
       <div className="w-full h-48 bg-gray-200" />
@@ -76,14 +76,16 @@ export default function ListingsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full md:w-80 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E8B57]"
           />
-          <Link href="/sell" className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold whitespace-nowrap">
+          <Link 
+            href="/create-listing" 
+            className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-3 rounded-xl font-semibold whitespace-nowrap"
+          >
             Sell an Item
           </Link>
         </div>
       </div>
 
       {loading ? (
-        // Skeleton Loading State
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 8 }).map((_, index) => (
             <SkeletonCard key={index} />
