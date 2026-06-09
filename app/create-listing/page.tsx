@@ -56,7 +56,7 @@ export default function CreateListingPage() {
     }
   }, []);
 
-  // Check authentication + profile completeness
+  // Check auth + profile completeness
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -67,7 +67,6 @@ export default function CreateListingPage() {
           return;
         }
 
-        // Check if profile is complete
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name, phone, bio, location')
@@ -75,7 +74,6 @@ export default function CreateListingPage() {
           .single();
 
         if (!profile || !profile.full_name) {
-          // Profile incomplete → show profile form first
           setShowProfileForm(true);
           if (profile) {
             setProfileData({
@@ -86,7 +84,6 @@ export default function CreateListingPage() {
             });
           }
         } else {
-          // Profile complete → load listing data if editing
           if (editId) {
             setIsEditing(true);
             const { data: listing } = await supabase
@@ -149,22 +146,28 @@ export default function CreateListingPage() {
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          toast.error('You must be logged in');
+          setLoading(false);
+          return;
+        }
 
         const { error } = await supabase.from('profiles').upsert({
           id: user.id,
           full_name: profileData.full_name.trim(),
-          phone: profileData.phone.trim(),
-          bio: profileData.bio.trim(),
-          location: profileData.location.trim(),
+          phone: profileData.phone.trim() || null,
+          bio: profileData.bio.trim() || null,
+          location: profileData.location.trim() || null,
           updated_at: new Date().toISOString(),
         });
 
         if (error) throw error;
 
-        toast.success('Profile saved! You can now create your listing.');
-        setShowProfileForm(false); // Show create listing form
+        toast.success('Profile saved successfully!');
+        setShowProfileForm(false);
+
       } catch (err: any) {
+        console.error(err);
         toast.error(err.message || 'Failed to save profile');
       } finally {
         setLoading(false);
@@ -187,12 +190,12 @@ export default function CreateListingPage() {
 
             <div>
               <label className="block text-sm font-semibold mb-2">WhatsApp Number</label>
-              <input type="tel" name="phone" value={profileData.phone} onChange={handleProfileChange} className="w-full border rounded-2xl px-5 py-3" placeholder="+27 71 234 5678" />
+              <input type="tel" name="phone" value={profileData.phone} onChange={handleProfileChange} placeholder="+27 71 234 5678" className="w-full border rounded-2xl px-5 py-3" />
             </div>
 
             <div>
               <label className="block text-sm font-semibold mb-2">Location</label>
-              <input type="text" name="location" value={profileData.location} onChange={handleProfileChange} className="w-full border rounded-2xl px-5 py-3" placeholder="Johannesburg" />
+              <input type="text" name="location" value={profileData.location} onChange={handleProfileChange} placeholder="Johannesburg" className="w-full border rounded-2xl px-5 py-3" />
             </div>
 
             <div>
@@ -200,7 +203,7 @@ export default function CreateListingPage() {
               <textarea name="bio" value={profileData.bio} onChange={handleProfileChange} rows={4} className="w-full border rounded-3xl px-5 py-3" placeholder="Tell buyers about yourself..." />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg">
+            <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg">
               {loading ? 'Saving...' : 'Save Profile & Continue to Sell'}
             </button>
           </form>
@@ -309,13 +312,11 @@ export default function CreateListingPage() {
 
       <div className="bg-white border rounded-3xl p-8 shadow-sm">
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Title */}
           <div>
             <label className="block text-sm font-semibold mb-2">Item Title *</label>
             <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
           </div>
 
-          {/* Price & Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Price (R) *</label>
@@ -327,7 +328,6 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          {/* Category & Condition */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Category</label>
@@ -350,13 +350,11 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-semibold mb-2">Description</label>
             <textarea name="description" value={formData.description} onChange={handleInputChange} rows={5} className="w-full border rounded-3xl px-5 py-4" />
           </div>
 
-          {/* Image Upload */}
           <div>
             <label className="block text-sm font-semibold mb-3 flex items-center gap-2">
               <ImageIcon className="w-4 h-4" /> Photos <span className="text-gray-400 font-normal">(Max 5)</span>
