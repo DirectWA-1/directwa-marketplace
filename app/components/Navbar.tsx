@@ -8,8 +8,15 @@ import { supabase } from '@/lib/supabase';
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isClient, setIsClient] = useState(false); // ← Prevents hydration error
+
+  // Mark as client-side only
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Get current user
   useEffect(() => {
@@ -20,16 +27,44 @@ export default function Navbar() {
     getUser();
   }, []);
 
-  // Live cart count
+  // Cart count (only after hydration)
   useEffect(() => {
+    if (!isClient) return;
+
     const updateCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
       setCartCount(cart.length);
     };
+
     updateCartCount();
     window.addEventListener('storage', updateCartCount);
     return () => window.removeEventListener('storage', updateCartCount);
-  }, []);
+  }, [isClient]);
+
+  // Real-time Wishlist count
+  useEffect(() => {
+    if (!user || !isClient) return;
+
+    const fetchWishlistCount = async () => {
+      const { count } = await supabase
+        .from('wishlists')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      setWishlistCount(count || 0);
+    };
+
+    fetchWishlistCount();
+
+    const channel = supabase
+      .channel('wishlist-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wishlists', filter: `user_id=eq.${user.id}` }, fetchWishlistCount)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isClient]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -37,7 +72,6 @@ export default function Navbar() {
     window.location.href = '/login';
   };
 
-  // Search function
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
@@ -51,17 +85,11 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
-      
-      {/* Top Bar */}
       <div className="bg-[#1E3A5F] text-white">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-          
-          {/* Logo */}
-          <Link href="/" className="text-2xl font-bold flex-shrink-0">
-            DirectWA
-          </Link>
+          <Link href="/" className="text-2xl font-bold">DirectWA</Link>
 
-          {/* Search Bar */}
+          {/* Search */}
           <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:flex">
             <div className="flex w-full bg-white rounded-md overflow-hidden">
               <input
@@ -79,45 +107,44 @@ export default function Navbar() {
             </div>
           </form>
 
-          {/* Right Side Desktop */}
+          {/* Right Side */}
           <div className="hidden md:flex items-center gap-5 text-sm">
-            
-            {/* ✅ Wishlist Icon */}
-            <Link href="/wishlist" className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            {/* Wishlist */}
+            <Link href="/wishlist" className="p-2 hover:bg-white/10 rounded-full relative">
               <Heart className="w-5 h-5" />
+              {isClient && wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#2E8B57] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
 
             {/* Cart */}
             <Link href="/cart" className="flex items-center gap-1 hover:bg-white/10 px-2 py-1 rounded relative">
               <ShoppingCart className="w-6 h-6" />
               <span className="font-medium">Cart</span>
-              {cartCount > 0 && (
+              {isClient && cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-[#2E8B57] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
             </Link>
 
-            {/* ✅ Auth Section - Fixed */}
+            {/* Auth */}
             {user ? (
               <div className="flex items-center gap-3">
                 <Link href="/my-listings" className="hover:bg-white/10 px-3 py-1 rounded">My Listings</Link>
                 <Link href="/seller/dashboard" className="hover:bg-white/10 px-3 py-1 rounded">Dashboard</Link>
-                <button onClick={handleLogout} className="px-4 py-1.5 text-sm border border-white/30 hover:bg-white/10 rounded">
-                  Logout
-                </button>
+                <button onClick={handleLogout} className="px-4 py-1.5 text-sm border border-white/30 hover:bg-white/10 rounded">Logout</button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <Link href="/login" className="hover:bg-white/10 px-3 py-1 rounded">Login</Link>
-                <Link href="/signup" className="px-4 py-1.5 text-sm bg-[#2E8B57] hover:bg-[#246B46] rounded text-white">
-                  Sign Up
-                </Link>
+                <Link href="/signup" className="px-4 py-1.5 text-sm bg-[#2E8B57] hover:bg-[#246B46] rounded text-white">Sign Up</Link>
               </div>
             )}
           </div>
 
-          {/* Mobile Hamburger */}
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2">
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -143,16 +170,13 @@ export default function Navbar() {
               <span className="text-xl font-semibold text-[#1E3A5F]">DirectWA</span>
               <button onClick={() => setMobileMenuOpen(false)}><X className="w-6 h-6" /></button>
             </div>
-
             <div className="px-5 py-6 text-sm space-y-1">
               <Link href="/listings" onClick={closeMobileMenu} className="block py-3">Browse Listings</Link>
               <Link href="/create-listing" onClick={closeMobileMenu} className="block py-3">Sell an Item</Link>
-              <Link href="/wishlist" onClick={closeMobileMenu} className="block py-3">Wishlist</Link>
+              <Link href="/wishlist" onClick={closeMobileMenu} className="block py-3">Wishlist ({wishlistCount})</Link>
               <Link href="/cart" onClick={closeMobileMenu} className="block py-3">Cart ({cartCount})</Link>
               <Link href="/how-it-works" onClick={closeMobileMenu} className="block py-3">How it Works</Link>
-
               <div className="border-t my-3" />
-
               {user ? (
                 <>
                   <Link href="/my-listings" onClick={closeMobileMenu} className="block py-3">My Listings</Link>
