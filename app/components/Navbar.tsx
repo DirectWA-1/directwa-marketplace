@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Heart, ShoppingCart } from 'lucide-react';
+import { Heart, ShoppingCart, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
@@ -68,10 +68,19 @@ export default function Navbar() {
             )}
           </Link>
 
-          {/* Auth Buttons */}
+          {/* User Menu */}
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link href="/seller/dashboard" className="px-4 py-2 text-sm hover:bg-gray-100 rounded-xl transition-colors">
+            <div className="flex items-center gap-2">
+              <Link 
+                href="/my-listings" 
+                className="px-4 py-2 text-sm hover:bg-gray-100 rounded-xl transition-colors hidden md:block"
+              >
+                My Listings
+              </Link>
+              <Link 
+                href="/seller/dashboard" 
+                className="px-4 py-2 text-sm hover:bg-gray-100 rounded-xl transition-colors hidden md:block"
+              >
                 Dashboard
               </Link>
               <button 
