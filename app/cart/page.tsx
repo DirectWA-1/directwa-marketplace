@@ -14,13 +14,13 @@ interface CartItem {
 
 export default function CartPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isClient, setIsClient] = useState(false);
 
-  // Load cart from localStorage
+  // Load cart from localStorage safely
   useEffect(() => {
+    setIsClient(true);
     const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
     setCart(savedCart);
-    setLoading(false);
   }, []);
 
   const updateQuantity = (id: string, newQuantity: number) => {
@@ -34,7 +34,7 @@ export default function CartPage() {
     localStorage.setItem('cart', JSON.stringify(updatedCart));
   };
 
-  // ✅ Remove from Cart with Undo
+  // Remove item with Undo functionality
   const removeFromCart = (id: string) => {
     const itemToRemove = cart.find(item => item.id === id);
     if (!itemToRemove) return;
@@ -47,12 +47,10 @@ export default function CartPage() {
       action: {
         label: 'Undo',
         onClick: () => {
-          // Restore the item
           const currentCart = JSON.parse(localStorage.getItem('cart') || '[]');
           currentCart.push(itemToRemove);
           localStorage.setItem('cart', JSON.stringify(currentCart));
           setCart(currentCart);
-
           toast.success('Item restored to cart');
         },
       },
@@ -61,12 +59,11 @@ export default function CartPage() {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  // ==================== SKELETON LOADER ====================
-  if (loading) {
+  // Show loading skeleton until client-side
+  if (!isClient) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="h-9 w-48 bg-gray-200 rounded mb-8 animate-pulse" />
-
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-white border rounded-2xl p-5 flex gap-5 animate-pulse">
@@ -83,6 +80,7 @@ export default function CartPage() {
     );
   }
 
+  // Empty cart state
   if (cart.length === 0) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-16 text-center">
@@ -136,17 +134,20 @@ export default function CartPage() {
         </div>
 
         {/* Order Summary */}
-        <div className="bg-white border rounded-2xl p-6 h-fit sticky top-6">
+        <div className="bg-white border rounded-3xl p-6 h-fit sticky top-6">
           <h2 className="text-xl font-semibold mb-6">Order Summary</h2>
 
-          <div className="flex justify-between text-lg font-semibold mb-6">
+          <div className="flex justify-between text-2xl font-bold mb-8">
             <span>Total</span>
             <span>R{total.toLocaleString()}</span>
           </div>
 
-          <button className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white py-4 rounded-2xl font-semibold text-lg mb-3">
+          <Link 
+            href="/checkout" 
+            className="block w-full text-center bg-[#2E8B57] hover:bg-[#246B46] text-white py-4 rounded-2xl font-semibold text-lg mb-3"
+          >
             Proceed to Checkout
-          </button>
+          </Link>
 
           <Link href="/listings" className="block text-center text-[#2E8B57] hover:underline">
             Continue Shopping
