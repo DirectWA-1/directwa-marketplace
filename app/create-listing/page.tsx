@@ -24,6 +24,7 @@ export default function CreateListingPage() {
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     title: '',
@@ -43,7 +44,7 @@ export default function CreateListingPage() {
     setEditId(params.get('edit'));
   }, []);
 
-  // Load user + profile + existing listing
+  // Load data
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -66,12 +67,14 @@ export default function CreateListingPage() {
 
         if (editId) {
           setIsEditing(true);
-          const { data: listing } = await supabase
+          const { data: listing, error: listingError } = await supabase
             .from('listings')
             .select('*')
             .eq('id', editId)
             .eq('user_id', user.id)
             .single();
+
+          if (listingError) throw listingError;
 
           if (listing) {
             setFormData({
@@ -85,9 +88,9 @@ export default function CreateListingPage() {
             setExistingImages(listing.images || []);
           }
         }
-      } catch (error) {
-        console.error(error);
-        toast.error('Failed to load page');
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Failed to load page');
       } finally {
         setCheckingProfile(false);
       }
@@ -105,6 +108,17 @@ export default function CreateListingPage() {
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+        <p className="text-red-600 mb-4">{error}</p>
+        <button onClick={() => window.location.reload()} className="bg-[#2E8B57] text-white px-6 py-2 rounded-xl">
+          Try Again
+        </button>
       </div>
     );
   }
@@ -150,6 +164,7 @@ export default function CreateListingPage() {
         return;
       }
 
+      // Upload new images
       let uploadedUrls: string[] = [];
       for (const file of newImages) {
         const fileExt = file.name.split('.').pop();
@@ -200,7 +215,7 @@ export default function CreateListingPage() {
         });
 
         if (error) throw error;
-        toast.success('Listing published successfully!');
+        toast.success('Listing created successfully!');
       }
 
       setTimeout(() => router.push('/my-listings'), 1500);

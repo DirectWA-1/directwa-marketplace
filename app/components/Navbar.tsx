@@ -2,15 +2,16 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Heart, ShoppingCart, Menu, X } from 'lucide-react';
+import { Heart, ShoppingCart, Menu, X, MapPin } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const [cartCount, setCartCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch user
+  // Get user
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -19,13 +20,12 @@ export default function Navbar() {
     getUser();
   }, []);
 
-  // Live cart count
+  // Cart count
   useEffect(() => {
     const updateCartCount = () => {
       const cart = JSON.parse(localStorage.getItem('cart') || '[]');
       setCartCount(cart.length);
     };
-
     updateCartCount();
     window.addEventListener('storage', updateCartCount);
     return () => window.removeEventListener('storage', updateCartCount);
@@ -37,134 +37,145 @@ export default function Navbar() {
     window.location.href = '/login';
   };
 
-  const closeMobileMenu = () => setMobileMenuOpen(false);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      window.location.href = `/listings?search=${encodeURIComponent(searchTerm)}`;
+    }
+  };
 
   return (
     <nav className="bg-white border-b sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-5 h-16 flex items-center justify-between">
-        
-        {/* Logo */}
-        <Link href="/" className="text-[22px] font-semibold tracking-tight text-[#1E3A5F]">
-          DirectWA
-        </Link>
-
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-9 text-[15px] font-medium text-gray-700">
-          <Link href="/listings" className="hover:text-[#2E8B57] transition-colors">
-            Browse
-          </Link>
-          <Link href="/create-listing" className="hover:text-[#2E8B57] transition-colors">
-            Sell
-          </Link>
-        </div>
-
-        {/* Desktop Right Side */}
-        <div className="hidden md:flex items-center gap-2">
+      
+      {/* ==================== TOP BAR (Amazon Style) ==================== */}
+      <div className="bg-[#1E3A5F] text-white">
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           
-          {/* Wishlist */}
-          <Link 
-            href="/wishlist" 
-            className="p-2.5 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <Heart className="w-5 h-5 text-gray-600" />
+          {/* Logo */}
+          <Link href="/" className="text-2xl font-bold tracking-tight flex-shrink-0">
+            DirectWA
           </Link>
 
-          {/* Cart */}
-          <Link 
-            href="/cart" 
-            className="p-2.5 hover:bg-gray-100 rounded-full transition-colors relative"
-          >
-            <ShoppingCart className="w-5 h-5 text-gray-600" />
-            {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 bg-[#2E8B57] text-white text-[10px] min-w-[18px] h-[18px] px-1.5 rounded-full flex items-center justify-center font-medium">
-                {cartCount}
-              </span>
-            )}
-          </Link>
+          {/* Delivery Location (Amazon style) */}
+          <div className="hidden md:flex items-center gap-1 text-sm cursor-pointer hover:bg-white/10 px-2 py-1 rounded">
+            <MapPin className="w-4 h-4" />
+            <div className="leading-tight">
+              <div className="text-[10px] text-white/70">Deliver to</div>
+              <div className="font-medium -mt-0.5">Johannesburg 2190</div>
+            </div>
+          </div>
 
-          {/* Auth Section */}
-          {user ? (
-            <div className="flex items-center gap-1 ml-2">
-              <Link 
-                href="/my-listings" 
-                className="px-4 py-2 text-sm font-medium hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                My Listings
-              </Link>
-              <Link 
-                href="/seller/dashboard" 
-                className="px-4 py-2 text-sm font-medium hover:bg-gray-100 rounded-xl transition-colors"
-              >
-                Dashboard
-              </Link>
+          {/* Search Bar */}
+          <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:flex">
+            <div className="flex w-full">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search listings..."
+                className="flex-1 px-4 py-2 text-black rounded-l-md focus:outline-none text-sm"
+              />
               <button 
-                onClick={handleLogout}
-                className="ml-2 px-5 py-2 text-sm font-medium border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors"
+                type="submit"
+                className="bg-[#2E8B57] hover:bg-[#246B46] px-5 rounded-r-md flex items-center justify-center"
               >
-                Logout
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </button>
             </div>
-          ) : (
-            <div className="flex items-center gap-3 ml-2">
-              <Link 
-                href="/login" 
-                className="px-5 py-2 text-sm font-medium border border-gray-300 hover:bg-gray-50 rounded-xl transition-colors"
-              >
-                Login
-              </Link>
-              <Link 
-                href="/signup" 
-                className="px-5 py-2 text-sm font-medium bg-[#2E8B57] hover:bg-[#246B46] text-white rounded-xl transition-colors"
-              >
-                Sign Up
-              </Link>
-            </div>
-          )}
-        </div>
+          </form>
 
-        {/* Mobile Hamburger */}
-        <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
-          className="md:hidden p-2"
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+          {/* Right Side */}
+          <div className="flex items-center gap-5 text-sm">
+            
+            {/* Account */}
+            {user ? (
+              <Link href="/seller/dashboard" className="hidden md:block hover:bg-white/10 px-3 py-1 rounded">
+                <div className="text-[10px] text-white/70">Hello, {user.email?.split('@')[0]}</div>
+                <div className="font-medium -mt-0.5">Account & Lists</div>
+              </Link>
+            ) : (
+              <Link href="/login" className="hidden md:block hover:bg-white/10 px-3 py-1 rounded">
+                <div className="text-[10px] text-white/70">Hello, sign in</div>
+                <div className="font-medium -mt-0.5">Account & Lists</div>
+              </Link>
+            )}
+
+            {/* Returns & Orders */}
+            <Link href="/my-listings" className="hidden md:block hover:bg-white/10 px-3 py-1 rounded">
+              <div className="text-[10px] text-white/70">Returns</div>
+              <div className="font-medium -mt-0.5">& Orders</div>
+            </Link>
+
+            {/* Cart */}
+            <Link href="/cart" className="flex items-center gap-1 hover:bg-white/10 px-2 py-1 rounded relative">
+              <ShoppingCart className="w-6 h-6" />
+              <span className="font-medium hidden md:inline">Cart</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#2E8B57] text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== SECOND BAR ==================== */}
+      <div className="bg-[#F1F5F9] border-b">
+        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-between text-sm">
+          
+          {/* Left Links */}
+          <div className="hidden md:flex items-center gap-6 text-gray-700 font-medium">
+            <Link href="/listings" className="hover:text-[#2E8B57]">All Listings</Link>
+            <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
+            <Link href="/how-it-works" className="hover:text-[#2E8B57]">How it Works</Link>
+            <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
+          </div>
+
+          {/* Right Side Promo */}
+          <div className="hidden md:block text-sm text-gray-600">
+            <Link href="/seller/dashboard" className="hover:text-[#2E8B57]">
+              Start selling today →
+            </Link>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
+            className="md:hidden flex items-center gap-2 text-sm font-medium"
+          >
+            <Menu className="w-5 h-5" /> Menu
+          </button>
+        </div>
       </div>
 
       {/* ==================== MOBILE MENU ==================== */}
       {mobileMenuOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={closeMobileMenu} />
-          
-          <div className="fixed top-0 right-0 h-full w-72 bg-white z-50 shadow-xl md:hidden">
-            <div className="flex items-center justify-between px-5 h-16 border-b">
-              <span className="text-xl font-semibold text-[#1E3A5F]">DirectWA</span>
-              <button onClick={closeMobileMenu}><X className="w-6 h-6" /></button>
-            </div>
+        <div className="md:hidden border-t bg-white px-4 py-4 text-sm">
+          <div className="space-y-1">
+            <Link href="/listings" onClick={() => setMobileMenuOpen(false)} className="block py-2">Browse Listings</Link>
+            <Link href="/create-listing" onClick={() => setMobileMenuOpen(false)} className="block py-2">Sell an Item</Link>
+            <Link href="/wishlist" onClick={() => setMobileMenuOpen(false)} className="block py-2">Wishlist</Link>
+            <Link href="/how-it-works" onClick={() => setMobileMenuOpen(false)} className="block py-2">How it Works</Link>
+            
+            <div className="border-t my-2" />
 
-            <div className="px-5 py-6 text-sm space-y-1">
-              <Link href="/listings" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Browse Listings</Link>
-              <Link href="/create-listing" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Sell an Item</Link>
-              <Link href="/wishlist" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Wishlist</Link>
-              <Link href="/cart" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Cart ({cartCount})</Link>
-
-              <div className="my-3 border-t" />
-
-              {user ? (
-                <>
-                  <Link href="/my-listings" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">My Listings</Link>
-                  <Link href="/seller/dashboard" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Seller Dashboard</Link>
-                  <button onClick={handleLogout} className="block w-full text-left py-3 px-3 text-red-600 hover:bg-red-50 rounded-lg">Logout</button>
-                </>
-              ) : (
-                <>
-                  <Link href="/login" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Login</Link>
-                  <Link href="/signup" onClick={closeMobileMenu} className="block py-3 px-3 rounded-lg hover:bg-gray-100">Sign Up</Link>
-                </>
-              )}
-            </div>
+            {user ? (
+              <>
+                <Link href="/my-listings" onClick={() => setMobileMenuOpen(false)} className="block py-2">My Listings</Link>
+                <Link href="/seller/dashboard" onClick={() => setMobileMenuOpen(false)} className="block py-2">Dashboard</Link>
+                <button onClick={handleLogout} className="block w-full text-left py-2 text-red-600">Logout</button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="block py-2">Login</Link>
+                <Link href="/signup" onClick={() => setMobileMenuOpen(false)} className="block py-2">Sign Up</Link>
+              </>
+            )}
           </div>
-        </>
+        </div>
       )}
     </nav>
   );
