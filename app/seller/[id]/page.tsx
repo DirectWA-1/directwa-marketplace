@@ -1,214 +1,176 @@
 'use client';
 
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
-interface SellerProfile {
-  id: string;
-  full_name: string;
-  created_at?: string;
-  bio?: string;
-  location?: string;
-}
+export default function SellerSetupPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-interface Listing {
-  id: string;
-  title: string;
-  price: number;
-  location: string;
-  images: string[];
-}
+  const [formData, setFormData] = useState({
+    full_name: '',
+    phone: '',
+    bio: '',
+    location: '',
+  });
 
-interface Review {
-  id: string;
-  rating: number;
-  comment: string;
-  created_at: string;
-}
-
-export default function SellerProfilePage() {
-  const params = useParams();
-  const sellerId = params.id as string;
-
-  const [profile, setProfile] = useState<SellerProfile | null>(null);
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [averageRating, setAverageRating] = useState(0);
-  const [loading, setLoading] = useState(true);
-
+  // Check if user is logged in and load existing profile
   useEffect(() => {
-    if (!sellerId) return;
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
 
-    const fetchSellerData = async () => {
-      setLoading(true);
-
-      // Fetch seller profile (including created_at if it exists)
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('id, full_name, created_at, bio, location')
-        .eq('id', sellerId)
-        .single();
-
-      if (profileData) setProfile(profileData);
-
-      // Fetch active listings
-      const { data: listingsData } = await supabase
-        .from('listings')
-        .select('id, title, price, location, images')
-        .eq('user_id', sellerId)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (listingsData) setListings(listingsData);
-
-      // Fetch reviews
-      const { data: reviewsData } = await supabase
-        .from('reviews')
-        .select('id, rating, comment, created_at')
-        .eq('seller_id', sellerId)
-        .order('created_at', { ascending: false });
-
-      if (reviewsData) {
-        setReviews(reviewsData);
-        if (reviewsData.length > 0) {
-          const avg = reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length;
-          setAverageRating(Math.round(avg * 10) / 10);
-        }
+      if (!user) {
+        router.push('/login');
+        return;
       }
 
-      setLoading(false);
+      // Load existing profile data if available
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, phone, bio, location')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setFormData({
+          full_name: profile.full_name || '',
+          phone: profile.phone || '',
+          bio: profile.bio || '',
+          location: profile.location || '',
+        });
+      }
+
+      setChecking(false);
     };
 
-    fetchSellerData();
-  }, [sellerId]);
+    loadProfile();
+  }, [router]);
 
-  if (loading) {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.full_name.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please log in again');
+        setLoading(false);
+        return;
+      }
+
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: formData.full_name.trim(),
+        phone: formData.phone.trim(),
+        bio: formData.bio.trim(),
+        location: formData.location.trim(),
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
+      toast.success('Profile updated successfully!');
+      router.push('/seller/dashboard');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (checking) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="h-8 w-64 bg-gray-200 rounded mb-8 animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white border rounded-2xl h-64 animate-pulse" />
-          ))}
-        </div>
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57]"></div>
       </div>
     );
   }
-
-  if (!profile) {
-    return (
-      <div className="max-w-5xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold text-[#1E3A5F]">Seller not found</h1>
-        <Link href="/listings" className="text-[#2E8B57] hover:underline mt-4 inline-block">
-          Browse all listings
-        </Link>
-      </div>
-    );
-  }
-
-  // Only show join date if created_at exists
-  const memberSince = profile.created_at 
-    ? new Date(profile.created_at).toLocaleDateString('en-ZA', {
-        month: 'long',
-        year: 'numeric',
-      })
-    : null;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      {/* Seller Header */}
-      <div className="bg-white border rounded-3xl p-8 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+    <div className="max-w-2xl mx-auto px-4 py-10">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">Complete Your Seller Profile</h1>
+        <p className="text-gray-600 mt-2">This information will be visible to buyers</p>
+      </div>
+
+      <div className="bg-white border rounded-3xl p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Full Name */}
           <div>
-            <h1 className="text-4xl font-bold text-[#1E3A5F]">{profile.full_name}</h1>
-            
-            {memberSince && (
-              <p className="text-gray-500 mt-1">Member since {memberSince}</p>
-            )}
-
-            {profile.location && (
-              <p className="text-gray-500 mt-1">📍 {profile.location}</p>
-            )}
-
-            {profile.bio && (
-              <p className="text-gray-600 mt-3 max-w-md">{profile.bio}</p>
-            )}
-
-            {averageRating > 0 && (
-              <div className="flex items-center gap-2 mt-3">
-                <div className="text-yellow-500 text-2xl">{'★'.repeat(Math.round(averageRating))}</div>
-                <span className="text-xl font-semibold">{averageRating}</span>
-                <span className="text-gray-500">({reviews.length} reviews)</span>
-              </div>
-            )}
+            <label className="block text-sm font-semibold mb-2">Full Name *</label>
+            <input
+              type="text"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              placeholder="John Doe"
+              className="w-full border border-gray-300 rounded-2xl px-5 py-3 focus:outline-none focus:border-[#2E8B57]"
+              required
+            />
           </div>
 
-          <a
-            href={`https://wa.me/27712345678?text=Hi%20${encodeURIComponent(profile.full_name)},%20I%20saw%20your%20listings%20on%20DirectWA`}
-            target="_blank"
-            className="bg-[#25D366] hover:bg-[#128C7E] text-white px-6 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2"
+          {/* Phone Number */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">WhatsApp Number</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+27 71 234 5678"
+              className="w-full border border-gray-300 rounded-2xl px-5 py-3 focus:outline-none focus:border-[#2E8B57]"
+            />
+            <p className="text-xs text-gray-500 mt-1">Buyers will use this to contact you</p>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="Johannesburg"
+              className="w-full border border-gray-300 rounded-2xl px-5 py-3 focus:outline-none focus:border-[#2E8B57]"
+            />
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">About You / Bio</label>
+            <textarea
+              name="bio"
+              value={formData.bio}
+              onChange={handleChange}
+              rows={4}
+              placeholder="Tell buyers a little about yourself and what you sell..."
+              className="w-full border border-gray-300 rounded-3xl px-5 py-3 focus:outline-none focus:border-[#2E8B57] resize-y"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg mt-4"
           >
-            💬 Chat on WhatsApp
-          </a>
-        </div>
-      </div>
-
-      {/* Active Listings */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">
-          Active Listings ({listings.length})
-        </h2>
-
-        {listings.length === 0 ? (
-          <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">
-            This seller currently has no active listings.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {listings.map((listing) => {
-              const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
-              return (
-                <Link href={`/listings/${listing.id}`} key={listing.id}>
-                  <div className="bg-white border rounded-2xl overflow-hidden group hover:shadow-md transition">
-                    <img src={image} alt={listing.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform" />
-                    <div className="p-5">
-                      <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">{listing.title}</h3>
-                      <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
-                      <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Reviews Section */}
-      <div>
-        <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">Reviews ({reviews.length})</h2>
-
-        {reviews.length === 0 ? (
-          <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">
-            This seller hasn't received any reviews yet.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {reviews.map((review) => (
-              <div key={review.id} className="bg-white border rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="text-yellow-500 text-xl">{'★'.repeat(review.rating)}</div>
-                  <span className="text-sm text-gray-500">
-                    {new Date(review.created_at).toLocaleDateString('en-ZA')}
-                  </span>
-                </div>
-                {review.comment && <p className="text-gray-700">{review.comment}</p>}
-              </div>
-            ))}
-          </div>
-        )}
+            {loading ? 'Saving...' : 'Save Profile & Continue'}
+          </button>
+        </form>
       </div>
     </div>
   );

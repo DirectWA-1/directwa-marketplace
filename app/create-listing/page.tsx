@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export default function CreateListingPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  // ✅ Read editId from URL safely (avoids prerender error)
+  // Read editId from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('edit');
@@ -48,12 +48,11 @@ export default function CreateListingPage() {
     }
   }, []);
 
-  // Check auth + profile + load listing if editing
+  // Auth + Profile check + Load listing if editing
   useEffect(() => {
     const initialize = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-
         if (!user) {
           router.push('/login');
           return;
@@ -93,7 +92,6 @@ export default function CreateListingPage() {
           }
         }
       } catch (err: any) {
-        console.error(err);
         setError(err.message || 'Failed to load page');
       } finally {
         setChecking(false);
@@ -109,10 +107,10 @@ export default function CreateListingPage() {
 
   if (checking) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[70vh]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading form...</p>
         </div>
       </div>
     );
@@ -216,96 +214,182 @@ export default function CreateListingPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10">
-      <div className="mb-8">
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      <div className="mb-8 text-center">
         <h1 className="text-4xl font-bold text-[#1E3A5F]">
           {isEditing ? 'Edit Listing' : 'Create New Listing'}
         </h1>
         <p className="text-gray-600 mt-2">
-          {isEditing ? 'Update your listing details below' : 'List your item in under 2 minutes'}
+          {isEditing ? 'Update your item details below' : 'Fill in the details to list your item'}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Item Title *</label>
-          <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" required />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="bg-white border rounded-3xl p-8 shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Title */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">Price (R) *</label>
-            <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Location *</label>
-            <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" required />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Category</label>
-            <select name="category" value={formData.category} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3">
-              <option>Electronics</option>
-              <option>Fashion & Clothing</option>
-              <option>Home & Garden</option>
-              <option>Vehicles & Parts</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Condition</label>
-            <select name="condition" value={formData.condition} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3">
-              <option>New</option>
-              <option>Like New</option>
-              <option>Good</option>
-              <option>Fair</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Description</label>
-          <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full border rounded-2xl px-4 py-3" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
-          <div className="border-2 border-dashed rounded-2xl p-6 text-center hover:border-[#2E8B57]">
-            <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" disabled={existingImages.length + newImages.length >= 5} />
-            <label htmlFor="images" className="cursor-pointer">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <span className="text-sm text-gray-600">Click to upload photos</span>
-            </label>
+            <label className="block text-sm font-semibold mb-2">Item Title *</label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              placeholder="e.g. iPhone 14 Pro Max 256GB"
+              className="w-full border border-gray-300 rounded-2xl px-5 py-3.5 text-lg focus:outline-none focus:border-[#2E8B57]"
+              required
+            />
           </div>
 
-          {(existingImages.length > 0 || newImages.length > 0) && (
-            <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
-              {existingImages.map((url, index) => (
-                <div key={index} className="relative group">
-                  <img src={url} alt="" className="w-full h-24 object-cover rounded-xl border" />
-                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1 rounded-full shadow"><ArrowLeft className="w-3 h-3" /></button>
-                    <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1 rounded-full shadow"><ArrowRight className="w-3 h-3" /></button>
-                    <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1 rounded-full shadow"><X className="w-3 h-3 text-red-600" /></button>
-                  </div>
-                </div>
-              ))}
-              {newImages.map((file, index) => (
-                <div key={index} className="relative group">
-                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-24 object-cover rounded-xl border" />
-                  <button type="button" onClick={() => removeNewImage(index)} className="absolute top-1 right-1 bg-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100"><X className="w-3 h-3 text-red-600" /></button>
-                </div>
-              ))}
+          {/* Price & Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold mb-2">Price (R) *</label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                placeholder="0"
+                className="w-full border border-gray-300 rounded-2xl px-5 py-3.5 text-lg focus:outline-none focus:border-[#2E8B57]"
+                required
+              />
             </div>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-semibold mb-2">Location *</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                placeholder="e.g. Johannesburg"
+                className="w-full border border-gray-300 rounded-2xl px-5 py-3.5 text-lg focus:outline-none focus:border-[#2E8B57]"
+                required
+              />
+            </div>
+          </div>
 
-        <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-xl text-lg">
-          {loading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Listing' : 'Create Listing')}
-        </button>
-      </form>
+          {/* Category & Condition */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-semibold mb-2">Category</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded-2xl px-5 py-3.5 text-lg focus:outline-none focus:border-[#2E8B57]"
+              >
+                <option>Electronics</option>
+                <option>Fashion & Clothing</option>
+                <option>Home & Garden</option>
+                <option>Vehicles & Parts</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold mb-2">Condition</label>
+              <select
+                name="condition"
+                value={formData.condition}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded-2xl px-5 py-3.5 text-lg focus:outline-none focus:border-[#2E8B57]"
+              >
+                <option>New</option>
+                <option>Like New</option>
+                <option>Good</option>
+                <option>Fair</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Description</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={5}
+              placeholder="Describe your item in detail..."
+              className="w-full border border-gray-300 rounded-3xl px-5 py-4 focus:outline-none focus:border-[#2E8B57] resize-y"
+            />
+          </div>
+
+          {/* Image Upload Section */}
+          <div>
+            <label className="block text-sm font-semibold mb-3 flex items-center gap-2">
+              <ImageIcon className="w-4 h-4" /> Photos <span className="text-gray-400 font-normal">(Max 5)</span>
+            </label>
+
+            <div className="border-2 border-dashed border-gray-300 rounded-3xl p-8 text-center hover:border-[#2E8B57] transition-colors">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                id="images"
+                disabled={existingImages.length + newImages.length >= 5}
+              />
+              <label htmlFor="images" className="cursor-pointer">
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <Upload className="w-7 h-7 text-gray-500" />
+                  </div>
+                  <p className="font-medium text-gray-700">Click to upload photos</p>
+                  <p className="text-sm text-gray-500 mt-1">or drag and drop</p>
+                </div>
+              </label>
+            </div>
+
+            {/* Image Previews */}
+            {(existingImages.length > 0 || newImages.length > 0) && (
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                {existingImages.map((url, index) => (
+                  <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                      <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1.5 rounded-full"><ArrowLeft className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1.5 rounded-full"><ArrowRight className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1.5 rounded-full text-red-600"><X className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                ))}
+
+                {newImages.map((file, index) => (
+                  <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
+                    <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(index)}
+                      className="absolute top-2 right-2 bg-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition"
+                    >
+                      <X className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  {isEditing ? 'Updating Listing...' : 'Creating Listing...'}
+                </>
+              ) : (
+                isEditing ? 'Update Listing' : 'Create Listing'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
