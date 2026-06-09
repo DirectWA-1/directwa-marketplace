@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -15,6 +16,7 @@ interface Listing {
 }
 
 export default function MyListingsPage() {
+  const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,7 @@ export default function MyListingsPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = '/login';
+        router.push('/login');
         return;
       }
 
@@ -43,7 +45,7 @@ export default function MyListingsPage() {
     };
 
     fetchMyListings();
-  }, []);
+  }, [router]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this listing?')) return;

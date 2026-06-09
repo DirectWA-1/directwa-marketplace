@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ interface Review {
 }
 
 export default function SellerDashboard() {
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [activeListings, setActiveListings] = useState<Listing[]>([]);
   const [soldListings, setSoldListings] = useState<Listing[]>([]);
@@ -28,8 +30,9 @@ export default function SellerDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
+
       if (!user) {
-        window.location.href = '/login';
+        router.push('/login');
         return;
       }
 
@@ -66,7 +69,7 @@ export default function SellerDashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [router]);
 
   const averageRating = reviews.length > 0
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
