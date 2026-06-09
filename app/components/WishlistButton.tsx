@@ -13,17 +13,17 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [lastRemoved, setLastRemoved] = useState<any>(null);
 
   useEffect(() => {
     const checkWishlist = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       setUser(user);
 
       const { data } = await supabase
         .from('wishlists')
-        .select('id')
+        .select('*')
         .eq('user_id', user.id)
         .eq('listing_id', listingId)
         .single();
@@ -36,7 +36,7 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
 
   const toggleWishlist = async () => {
     if (!user) {
-      toast.error('Please login to add to wishlist');
+      toast.error('Please login to use wishlist');
       return;
     }
 
@@ -44,36 +44,46 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
 
     if (isWishlisted) {
       // Remove from wishlist
-      const { error } = await supabase
+      const { data: removedItem } = await supabase
         .from('wishlists')
         .delete()
         .eq('user_id', user.id)
-        .eq('listing_id', listingId);
+        .eq('listing_id', listingId)
+        .select()
+        .single();
 
-      if (!error) {
+      if (removedItem) {
         setIsWishlisted(false);
-        toast.success('Removed from wishlist');
-      } else {
-        toast.error('Failed to remove from wishlist');
+        setLastRemoved(removedItem);
+
+        toast.success('Removed from wishlist', {
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              // Undo - re-add to wishlist
+              const { error } = await supabase.from('wishlists').insert({
+                user_id: user.id,
+                listing_id: listingId,
+              });
+
+              if (!error) {
+                setIsWishlisted(true);
+                toast.success('Restored to wishlist');
+              }
+            },
+          },
+        });
       }
     } else {
       // Add to wishlist
-      const { error } = await supabase
-        .from('wishlists')
-        .insert({
-          user_id: user.id,
-          listing_id: listingId,
-        });
+      const { error } = await supabase.from('wishlists').insert({
+        user_id: user.id,
+        listing_id: listingId,
+      });
 
       if (!error) {
         setIsWishlisted(true);
-        toast.success('Added to wishlist', {
-          description: 'You can view it in your wishlist',
-          action: {
-            label: 'View Wishlist',
-            onClick: () => window.location.href = '/wishlist',
-          },
-        });
+        toast.success('Added to wishlist');
       } else {
         toast.error('Failed to add to wishlist');
       }

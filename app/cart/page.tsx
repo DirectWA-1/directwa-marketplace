@@ -34,11 +34,29 @@ export default function CartPage() {
     localStorage.setItem('cart', JSON.stringify(updatedCart));
   };
 
+  // ✅ Remove from Cart with Undo
   const removeFromCart = (id: string) => {
+    const itemToRemove = cart.find(item => item.id === id);
+    if (!itemToRemove) return;
+
     const updatedCart = cart.filter(item => item.id !== id);
     setCart(updatedCart);
     localStorage.setItem('cart', JSON.stringify(updatedCart));
-    toast.success('Item removed from cart');
+
+    toast.success('Item removed from cart', {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          // Restore the item
+          const currentCart = JSON.parse(localStorage.getItem('cart') || '[]');
+          currentCart.push(itemToRemove);
+          localStorage.setItem('cart', JSON.stringify(currentCart));
+          setCart(currentCart);
+
+          toast.success('Item restored to cart');
+        },
+      },
+    });
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -101,7 +119,10 @@ export default function CartPage() {
                     <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="px-3 py-1 text-xl">+</button>
                   </div>
 
-                  <button onClick={() => removeFromCart(item.id)} className="text-red-600 hover:text-red-700 text-sm">
+                  <button 
+                    onClick={() => removeFromCart(item.id)} 
+                    className="text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
                     Remove
                   </button>
                 </div>
