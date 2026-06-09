@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';   // ✅ This fixes the prerender error
+
 interface Listing {
   id: string;
   title: string;
@@ -24,7 +26,6 @@ export default function ListingsPage() {
   const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedCondition, setSelectedCondition] = useState('');
@@ -55,11 +56,10 @@ export default function ListingsPage() {
     fetchListings();
   }, []);
 
-  // Apply filters (including URL search term)
+  // Apply filters
   useEffect(() => {
     let result = [...listings];
 
-    // Search (from input or URL)
     const activeSearch = searchTerm || urlSearchTerm;
     if (activeSearch) {
       const term = activeSearch.toLowerCase();
@@ -70,21 +70,17 @@ export default function ListingsPage() {
       );
     }
 
-    // Category
     if (selectedCategory) {
       result = result.filter((listing) => listing.category === selectedCategory);
     }
 
-    // Condition
     if (selectedCondition) {
       result = result.filter((listing) => listing.condition === selectedCondition);
     }
 
-    // Price
     if (minPrice) result = result.filter((l) => l.price >= parseInt(minPrice));
     if (maxPrice) result = result.filter((l) => l.price <= parseInt(maxPrice));
 
-    // Sort
     if (sortBy === 'newest') {
       result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (sortBy === 'price-low') {
@@ -149,7 +145,6 @@ export default function ListingsPage() {
           <div className="bg-white border rounded-2xl p-6 sticky top-6">
             <h3 className="font-semibold text-lg mb-4">Filters</h3>
 
-            {/* Search */}
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5">Search</label>
               <input
@@ -161,7 +156,6 @@ export default function ListingsPage() {
               />
             </div>
 
-            {/* Category */}
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5">Category</label>
               <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
@@ -170,7 +164,6 @@ export default function ListingsPage() {
               </select>
             </div>
 
-            {/* Condition */}
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5">Condition</label>
               <select value={selectedCondition} onChange={(e) => setSelectedCondition(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
@@ -179,7 +172,6 @@ export default function ListingsPage() {
               </select>
             </div>
 
-            {/* Price Range */}
             <div>
               <label className="block text-sm font-medium mb-1.5">Price Range (R)</label>
               <div className="flex gap-3">
@@ -190,7 +182,7 @@ export default function ListingsPage() {
           </div>
         </div>
 
-        {/* Listings */}
+        {/* Listings Grid */}
         <div className="lg:col-span-3">
           {filteredListings.length === 0 ? (
             <div className="bg-white border rounded-2xl p-12 text-center">
