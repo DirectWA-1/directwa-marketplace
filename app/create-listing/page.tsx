@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,11 +19,12 @@ interface FormData {
 
 export default function CreateListingPage() {
   const router = useRouter();
-  const [editId, setEditId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
 
-  const [checkingProfile, setCheckingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
@@ -38,15 +39,9 @@ export default function CreateListingPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  // Get editId from URL
+  // Check authentication + profile + load listing if editing
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setEditId(params.get('edit'));
-  }, []);
-
-  // Load user + profile + existing listing
-  useEffect(() => {
-    const loadData = async () => {
+    const initialize = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -56,13 +51,13 @@ export default function CreateListingPage() {
         }
 
         // Check if user has completed seller setup
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
           .single();
 
-        if (profileError || !profile || !profile.full_name) {
+        if (!profile || !profile.full_name) {
           router.push('/seller/setup');
           return;
         }
@@ -96,16 +91,14 @@ export default function CreateListingPage() {
         console.error(err);
         setError(err.message || 'Failed to load page');
       } finally {
-        setCheckingProfile(false);
+        setChecking(false);
       }
     };
 
-    if (editId !== null) {
-      loadData();
-    }
+    initialize();
   }, [editId, router]);
 
-  if (checkingProfile) {
+  if (checking) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
@@ -189,19 +182,15 @@ export default function CreateListingPage() {
       const finalImages = [...existingImages, ...uploadedUrls];
 
       if (isEditing && editId) {
-        const { error } = await supabase
-          .from('listings')
-          .update({
-            title: formData.title.trim(),
-            price: parseFloat(formData.price),
-            location: formData.location.trim(),
-            category: formData.category,
-            condition: formData.condition,
-            description: formData.description.trim() || null,
-            images: finalImages,
-          })
-          .eq('id', editId)
-          .eq('user_id', user.id);
+        const { error } = await supabase.from('listings').update({
+          title: formData.title.trim(),
+          price: parseFloat(formData.price),
+          location: formData.location.trim(),
+          category: formData.category,
+          condition: formData.condition,
+          description: formData.description.trim() || null,
+          images: finalImages,
+        }).eq('id', editId).eq('user_id', user.id);
 
         if (error) throw error;
         toast.success('Listing updated successfully!');
@@ -222,7 +211,7 @@ export default function CreateListingPage() {
         toast.success('Listing created successfully!');
       }
 
-      setTimeout(() => router.push('/my-listings'), 1500);
+      setTimeout(() => router.push('/my-listings'), 1200);
     } catch (err: any) {
       toast.error(err.message || 'Something went wrong');
     } finally {
@@ -304,28 +293,20 @@ export default function CreateListingPage() {
           {(existingImages.length > 0 || newImages.length > 0) && (
             <div className="mt-4 grid grid-cols-3 sm:grid-cols-5 gap-3">
               {existingImages.map((url, index) => (
-                <div key={`existing-${index}`} className="relative group">
+                <div key={index} className="relative group">
                   <img src={url} alt="" className="w-full h-24 object-cover rounded-xl border" />
                   <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                    <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1 rounded-full shadow">
-                      <ArrowLeft className="w-3 h-3" />
-                    </button>
-                    <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1 rounded-full shadow">
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
-                    <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1 rounded-full shadow">
-                      <X className="w-3 h-3 text-red-600" />
-                    </button>
+                    <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1 rounded-full shadow"><ArrowLeft className="w-3 h-3" /></button>
+                    <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1 rounded-full shadow"><ArrowRight className="w-3 h-3" /></button>
+                    <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1 rounded-full shadow"><X className="w-3 h-3 text-red-600" /></button>
                   </div>
                 </div>
               ))}
 
               {newImages.map((file, index) => (
-                <div key={`new-${index}`} className="relative group">
+                <div key={index} className="relative group">
                   <img src={URL.createObjectURL(file)} alt="" className="w-full h-24 object-cover rounded-xl border" />
-                  <button type="button" onClick={() => removeNewImage(index)} className="absolute top-1 right-1 bg-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100">
-                    <X className="w-3 h-3 text-red-600" />
-                  </button>
+                  <button type="button" onClick={() => removeNewImage(index)} className="absolute top-1 right-1 bg-white p-1 rounded-full shadow opacity-0 group-hover:opacity-100"><X className="w-3 h-3 text-red-600" /></button>
                 </div>
               ))}
             </div>
