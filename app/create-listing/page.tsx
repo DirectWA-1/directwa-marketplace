@@ -44,29 +44,33 @@ export default function CreateListingPage() {
     setEditId(params.get('edit'));
   }, []);
 
-  // Load data
+  // Load user + profile + existing listing
   useEffect(() => {
     const loadData = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+
         if (!user) {
           router.push('/login');
           return;
         }
 
-        const { data: profile } = await supabase
+        // Check if user has completed seller setup
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
           .single();
 
-        if (!profile || !profile.full_name) {
+        if (profileError || !profile || !profile.full_name) {
           router.push('/seller/setup');
           return;
         }
 
+        // If editing, load existing listing
         if (editId) {
           setIsEditing(true);
+
           const { data: listing, error: listingError } = await supabase
             .from('listings')
             .select('*')
