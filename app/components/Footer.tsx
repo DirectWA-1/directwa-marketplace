@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { MessageCircle, Instagram, Facebook, Twitter } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -17,43 +16,31 @@ export default function Footer() {
               Buy and sell locally with no middleman fees.
             </p>
 
-            {/* Social Media Icons */}
-            <div className="flex gap-4 mt-6">
+            {/* Social Links (Text-based to avoid icon issues) */}
+            <div className="flex gap-4 mt-6 text-sm">
               <a 
                 href="https://wa.me/27712345678" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="WhatsApp"
+                className="hover:text-[#2E8B57] transition-colors"
               >
-                <MessageCircle className="w-5 h-5 text-[#25D366]" />
+                WhatsApp
               </a>
               <a 
                 href="https://instagram.com/directwa" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Instagram"
+                className="hover:text-[#2E8B57] transition-colors"
               >
-                <Instagram className="w-5 h-5 text-pink-600" />
+                Instagram
               </a>
               <a 
                 href="https://facebook.com/directwa" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Facebook"
+                className="hover:text-[#2E8B57] transition-colors"
               >
-                <Facebook className="w-5 h-5 text-blue-600" />
-              </a>
-              <a 
-                href="https://twitter.com/directwa" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Twitter"
-              >
-                <Twitter className="w-5 h-5 text-sky-500" />
+                Facebook
               </a>
             </div>
           </div>
