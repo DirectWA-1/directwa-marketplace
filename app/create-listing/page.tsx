@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -19,9 +19,8 @@ interface FormData {
 
 export default function CreateListingPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const editId = searchParams.get('edit');
 
+  const [editId, setEditId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -39,7 +38,17 @@ export default function CreateListingPage() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
 
-  // Check authentication + profile + load listing if editing
+  // ✅ Read editId from URL safely (avoids prerender error)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('edit');
+    if (id) {
+      setEditId(id);
+      setIsEditing(true);
+    }
+  }, []);
+
+  // Check auth + profile + load listing if editing
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -50,7 +59,6 @@ export default function CreateListingPage() {
           return;
         }
 
-        // Check if user has completed seller setup
         const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
@@ -62,10 +70,7 @@ export default function CreateListingPage() {
           return;
         }
 
-        // If editing, load existing listing
         if (editId) {
-          setIsEditing(true);
-
           const { data: listing, error: listingError } = await supabase
             .from('listings')
             .select('*')
@@ -95,7 +100,11 @@ export default function CreateListingPage() {
       }
     };
 
-    initialize();
+    if (editId !== null) {
+      initialize();
+    } else {
+      setChecking(false);
+    }
   }, [editId, router]);
 
   if (checking) {
@@ -132,18 +141,12 @@ export default function CreateListingPage() {
     }
   };
 
-  const removeNewImage = (index: number) => {
-    setNewImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const removeExistingImage = (index: number) => {
-    setExistingImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const removeNewImage = (index: number) => setNewImages(prev => prev.filter((_, i) => i !== index));
+  const removeExistingImage = (index: number) => setExistingImages(prev => prev.filter((_, i) => i !== index));
 
   const moveImage = (index: number, direction: 'left' | 'right') => {
     const newIndex = direction === 'left' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= existingImages.length) return;
-
     const updated = [...existingImages];
     [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
     setExistingImages(updated);
@@ -161,20 +164,13 @@ export default function CreateListingPage() {
         return;
       }
 
-      // Upload new images
       let uploadedUrls: string[] = [];
       for (const file of newImages) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('listing-images')
-          .upload(fileName, file);
-
+        const { error: uploadError } = await supabase.storage.from('listing-images').upload(fileName, file);
         if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(fileName);
+          const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(fileName);
           uploadedUrls.push(publicUrl);
         }
       }
@@ -231,13 +227,11 @@ export default function CreateListingPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl border space-y-6">
-        {/* Title */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Item Title *</label>
           <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-xl px-4 py-3" required />
         </div>
 
-        {/* Price & Location */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Price (R) *</label>
@@ -249,7 +243,6 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Category & Condition */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">Category</label>
@@ -272,16 +265,13 @@ export default function CreateListingPage() {
           </div>
         </div>
 
-        {/* Description */}
         <div>
           <label className="block text-sm font-medium mb-1.5">Description</label>
           <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="w-full border rounded-2xl px-4 py-3" />
         </div>
 
-        {/* Image Upload */}
         <div>
           <label className="block text-sm font-medium mb-2">Photos (Max 5)</label>
-
           <div className="border-2 border-dashed rounded-2xl p-6 text-center hover:border-[#2E8B57]">
             <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" disabled={existingImages.length + newImages.length >= 5} />
             <label htmlFor="images" className="cursor-pointer">
@@ -302,7 +292,6 @@ export default function CreateListingPage() {
                   </div>
                 </div>
               ))}
-
               {newImages.map((file, index) => (
                 <div key={index} className="relative group">
                   <img src={URL.createObjectURL(file)} alt="" className="w-full h-24 object-cover rounded-xl border" />
