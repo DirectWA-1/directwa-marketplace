@@ -82,6 +82,7 @@ export default function ListingDetail() {
     setLoading(false);
   };
 
+  // ✅ Add to Cart with Toast
   const addToCart = () => {
     if (!listing) return;
 
@@ -89,19 +90,28 @@ export default function ListingDetail() {
     const existing = cart.find((item: any) => item.id === listing.id);
 
     if (existing) {
-      existing.quantity = (existing.quantity || 1) + 1;
-    } else {
-      cart.push({
-        id: listing.id,
-        title: listing.title,
-        price: listing.price,
-        image: listing.images?.[0] || '',
-        quantity: 1,
-      });
+      toast.error('Item is already in your cart');
+      return;
     }
 
+    cart.push({
+      id: listing.id,
+      title: listing.title,
+      price: listing.price,
+      image: listing.images?.[0] || '',
+      quantity: 1,
+    });
+
     localStorage.setItem('cart', JSON.stringify(cart));
-    toast.success('Added to cart!');
+    window.dispatchEvent(new Event('storage')); // Update Navbar cart count
+
+    toast.success('Added to cart!', {
+      description: listing.title,
+      action: {
+        label: 'View Cart',
+        onClick: () => window.location.href = '/cart',
+      },
+    });
   };
 
   const submitReview = async (e: React.FormEvent) => {
@@ -136,7 +146,6 @@ export default function ListingDetail() {
         <div className="h-5 w-32 bg-gray-200 rounded mb-6 animate-pulse" />
 
         <div className="grid md:grid-cols-2 gap-10">
-          {/* Image Skeleton */}
           <div>
             <div className="w-full aspect-[4/3] bg-gray-200 rounded-2xl animate-pulse" />
             <div className="flex gap-3 mt-4">
@@ -146,7 +155,6 @@ export default function ListingDetail() {
             </div>
           </div>
 
-          {/* Info Skeleton */}
           <div className="space-y-4">
             <div className="flex gap-2">
               <div className="h-7 w-24 bg-gray-200 rounded-full animate-pulse" />
@@ -154,8 +162,6 @@ export default function ListingDetail() {
             </div>
             <div className="h-9 w-3/4 bg-gray-200 rounded animate-pulse" />
             <div className="h-8 w-1/2 bg-gray-200 rounded animate-pulse" />
-            <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse" />
-
             <div className="pt-4 space-y-3">
               <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
               <div className="h-14 bg-gray-200 rounded-2xl animate-pulse" />
