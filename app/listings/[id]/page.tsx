@@ -82,7 +82,6 @@ export default function ListingDetail() {
     setLoading(false);
   };
 
-  // ✅ Add to Cart with Toast
   const addToCart = () => {
     if (!listing) return;
 
@@ -103,7 +102,7 @@ export default function ListingDetail() {
     });
 
     localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('storage')); // Update Navbar cart count
+    window.dispatchEvent(new Event('storage'));
 
     toast.success('Added to cart!', {
       description: listing.title,
@@ -139,12 +138,10 @@ export default function ListingDetail() {
     setSubmitting(false);
   };
 
-  // ==================== SKELETON LOADER ====================
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="h-5 w-32 bg-gray-200 rounded mb-6 animate-pulse" />
-
         <div className="grid md:grid-cols-2 gap-10">
           <div>
             <div className="w-full aspect-[4/3] bg-gray-200 rounded-2xl animate-pulse" />
@@ -154,7 +151,6 @@ export default function ListingDetail() {
               ))}
             </div>
           </div>
-
           <div className="space-y-4">
             <div className="flex gap-2">
               <div className="h-7 w-24 bg-gray-200 rounded-full animate-pulse" />
@@ -214,18 +210,10 @@ export default function ListingDetail() {
             <WishlistButton listingId={listing.id} />
           </div>
 
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="text-3xl font-bold text-[#1E3A5F]">{listing.title}</h1>
-            <button
-              onClick={() => setShowReportModal(true)}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-xl font-medium"
-            >
-              🚩 Report Listing
-            </button>
-          </div>
+          <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">{listing.title}</h1>
 
           {averageRating > 0 && (
-            <div className="flex items-center gap-2 mt-2 mb-4">
+            <div className="flex items-center gap-2 mb-4">
               <div className="text-yellow-500 text-xl">{'★'.repeat(Math.round(averageRating))}</div>
               <span className="text-lg font-semibold">{averageRating}</span>
               <span className="text-gray-500">({reviews.length} reviews)</span>
@@ -235,13 +223,21 @@ export default function ListingDetail() {
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          <div className="mb-6">
-            <p className="text-sm text-gray-500 mb-1">Sold by</p>
-            <Link href={`/seller/${listing.user_id}`} className="text-[#2E8B57] hover:underline font-medium text-lg">
-              View Seller Profile →
+          {/* ✅ Updated Seller Link */}
+          <div className="mb-8">
+            <p className="text-sm text-gray-500 mb-1.5">Sold by</p>
+            <Link 
+              href={`/seller/${listing.user_id}`} 
+              className="inline-flex items-center gap-2 group"
+            >
+              <span className="text-[#2E8B57] group-hover:underline font-semibold text-lg">
+                View Seller Profile
+              </span>
+              <span className="text-[#2E8B57] group-hover:translate-x-0.5 transition-transform">→</span>
             </Link>
           </div>
 
+          {/* Description */}
           <div className="mb-8">
             <h3 className="font-semibold mb-2">Description</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
@@ -249,6 +245,7 @@ export default function ListingDetail() {
             </p>
           </div>
 
+          {/* Action Buttons */}
           <div className="space-y-3">
             <button onClick={addToCart} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg">
               Add to Cart
