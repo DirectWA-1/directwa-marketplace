@@ -1,29 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-export const dynamic = 'force-dynamic';   // ✅ This fixes the prerender error
-
-interface Listing {
-  id: string;
-  title: string;
-  price: number;
-  location: string;
-  images: string[];
-  category: string;
-  condition: string;
-  created_at: string;
-}
-
-export default function ListingsPage() {
+// Inner component that uses useSearchParams
+function ListingsContent() {
   const searchParams = useSearchParams();
   const urlSearchTerm = searchParams.get('search') || '';
 
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [filteredListings, setFilteredListings] = useState<Listing[]>([]);
+  const [listings, setListings] = useState<any[]>([]);
+  const [filteredListings, setFilteredListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState(urlSearchTerm);
@@ -36,7 +24,6 @@ export default function ListingsPage() {
   const categories = ['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'];
   const conditions = ['New', 'Like New', 'Good', 'Fair'];
 
-  // Fetch listings
   useEffect(() => {
     const fetchListings = async () => {
       setLoading(true);
@@ -56,7 +43,6 @@ export default function ListingsPage() {
     fetchListings();
   }, []);
 
-  // Apply filters
   useEffect(() => {
     let result = [...listings];
 
@@ -70,14 +56,8 @@ export default function ListingsPage() {
       );
     }
 
-    if (selectedCategory) {
-      result = result.filter((listing) => listing.category === selectedCategory);
-    }
-
-    if (selectedCondition) {
-      result = result.filter((listing) => listing.condition === selectedCondition);
-    }
-
+    if (selectedCategory) result = result.filter((l) => l.category === selectedCategory);
+    if (selectedCondition) result = result.filter((l) => l.condition === selectedCondition);
     if (minPrice) result = result.filter((l) => l.price >= parseInt(minPrice));
     if (maxPrice) result = result.filter((l) => l.price <= parseInt(maxPrice));
 
@@ -121,11 +101,7 @@ export default function ListingsPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
         <h1 className="text-3xl font-bold text-[#1E3A5F]">All Listings</h1>
         <div className="flex items-center gap-3">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="border border-gray-300 rounded-xl px-4 py-2 text-sm"
-          >
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="border border-gray-300 rounded-xl px-4 py-2 text-sm">
             <option value="newest">Newest First</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
@@ -147,20 +123,14 @@ export default function ListingsPage() {
 
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5">Search</label>
-              <input
-                type="text"
-                placeholder="Search listings..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm"
-              />
+              <input type="text" placeholder="Search listings..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
             </div>
 
             <div className="mb-5">
               <label className="block text-sm font-medium mb-1.5">Category</label>
               <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
                 <option value="">All Categories</option>
-                {categories.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                {['Electronics', 'Fashion & Clothing', 'Home & Garden', 'Vehicles & Parts', 'Other'].map((cat) => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
 
@@ -168,7 +138,7 @@ export default function ListingsPage() {
               <label className="block text-sm font-medium mb-1.5">Condition</label>
               <select value={selectedCondition} onChange={(e) => setSelectedCondition(e.target.value)} className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm">
                 <option value="">Any Condition</option>
-                {conditions.map((cond) => <option key={cond} value={cond}>{cond}</option>)}
+                {['New', 'Like New', 'Good', 'Fair'].map((cond) => <option key={cond} value={cond}>{cond}</option>)}
               </select>
             </div>
 
@@ -215,5 +185,23 @@ export default function ListingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main page component wrapped in Suspense
+export default function ListingsPageWrapper() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="h-10 w-64 bg-gray-200 rounded mb-8 animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white border rounded-2xl h-80 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    }>
+      <ListingsContent />
+    </Suspense>
   );
 }
