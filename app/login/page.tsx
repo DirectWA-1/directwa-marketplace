@@ -29,32 +29,58 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-16">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-[#1E3A5F]">Welcome Back</h1>
-        <p className="text-gray-600 mt-2">Sign in to your DirectWA account</p>
+    <div className="min-h-[80vh] flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-[#1E3A5F]">Welcome Back</h1>
+          <p className="text-gray-600 mt-2">Sign in to your DirectWA account</p>
+        </div>
+
+        <div className="bg-white border rounded-2xl p-8 shadow-sm">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E8B57]"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-[#2E8B57]"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-3.5 rounded-2xl text-lg transition-colors"
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-gray-600 mt-6">
+            Don't have an account?{' '}
+            <Link href="/signup" className="text-[#2E8B57] hover:underline font-medium">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
-
-      <form onSubmit={handleLogin} className="bg-white border rounded-2xl p-8 space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Email Address</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full border rounded-xl px-4 py-3" required />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Password</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full border rounded-xl px-4 py-3" required />
-        </div>
-
-        <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white py-3.5 rounded-2xl font-semibold">
-          {loading ? 'Signing in...' : 'Sign In'}
-        </button>
-
-        <p className="text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link href="/signup" className="text-[#2E8B57] hover:underline font-medium">Sign up</Link>
-        </p>
-      </form>
     </div>
   );
 }
