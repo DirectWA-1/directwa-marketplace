@@ -2,25 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Upload, X } from 'lucide-react';
 
 export default function SellerSetupPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   const [formData, setFormData] = useState({
     full_name: '',
+    phone: '',
     bio: '',
     location: '',
   });
 
-  // Load existing profile data
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+
+  // Load existing profile
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) {
         router.push('/login');
         return;
@@ -28,18 +32,23 @@ export default function SellerSetupPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, bio, location')
+        .select('full_name, phone, bio, location, avatar_url')
         .eq('id', user.id)
         .single();
 
       if (profile) {
         setFormData({
           full_name: profile.full_name || '',
+          phone: profile.phone || '',
           bio: profile.bio || '',
           location: profile.location || '',
         });
+        if (profile.avatar_url) {
+          setAvatarPreview(profile.avatar_url);
+        }
       }
-      setLoading(false);
+
+      setChecking(false);
     };
 
     loadProfile();
@@ -50,78 +59,189 @@ export default function SellerSetupPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      toast.error('You must be logged in');
-      setSaving(false);
+    if (!formData.full_name.trim()) {
+      toast.error('Full name is required');
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: formData.full_name.trim(),
-        bio: formData.bio.trim(),
-        location: formData.location.trim(),
-      })
-      .eq('id', user.id);
+    setLoading(true);
 
-    if (error) {
-      toast.error('Failed to save profile');
-    } else {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      let avatarUrl = avatarPreview;
+
+      // Upload new avatar if selected
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${user.id}/avatar.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+
+        avatarUrl = publicUrl;
+      }
+
+      // Update profile
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: formData.full_name.trim(),
+        phone: formData.phone.trim() || null,
+        bio: formData.bio.trim() || null,
+        location: formData.location.trim() || null,
+        avatar_url: avatarUrl || null,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) throw error;
+
       toast.success('Profile updated successfully!');
-      router.push('/listings');
+      router.push('/seller/dashboard');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to save profile');
+    } finally {
+      setLoading(false);
     }
-    setSaving(false);
   };
 
-  if (loading) {
+  if (checking) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <div className="bg-white border rounded-2xl p-8 animate-pulse">
-          <div className="h-8 w-64 bg-gray-200 rounded mb-8" />
-          <div className="space-y-6">
-            <div className="h-12 bg-gray-200 rounded-xl" />
-            <div className="h-12 bg-gray-200 rounded-xl" />
-            <div className="h-32 bg-gray-200 rounded-2xl" />
-            <div className="h-12 bg-gray-200 rounded-2xl" />
-          </div>
-        </div>
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57]"></div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="mb-8">
+    <div className="max-w-2xl mx-auto px-4 py-10">
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-[#1E3A5F]">Complete Your Seller Profile</h1>
-        <p className="text-gray-600 mt-2">This information will be visible to buyers.</p>
+        <p className="text-gray-600 mt-2">This information will be visible to buyers</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white border rounded-2xl p-8 space-y-6">
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Full Name *</label>
-          <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" required />
-        </div>
+      <div className="bg-white border rounded-3xl p-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          
+          {/* Avatar Upload */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Profile Picture</label>
+            <div className="flex items-center gap-6">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden border border-gray-300">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400">
+                    <Upload className="w-8 h-8" />
+                  </div>
+                )}
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Location</label>
-          <input type="text" name="location" value={formData.location} onChange={handleChange} className="w-full border rounded-xl px-4 py-3" placeholder="e.g. Johannesburg, Gauteng" />
-        </div>
+              <div className="flex gap-3">
+                <label className="cursor-pointer bg-white border px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50">
+                  Choose Photo
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                </label>
 
-        <div>
-          <label className="block text-sm font-medium mb-1.5">Bio / About You</label>
-          <textarea name="bio" value={formData.bio} onChange={handleChange} rows={4} className="w-full border rounded-2xl px-4 py-3" placeholder="Tell buyers a bit about yourself..." />
-        </div>
+                {avatarPreview && (
+                  <button 
+                    type="button" 
+                    onClick={removeAvatar}
+                    className="text-red-600 hover:text-red-700 text-sm flex items-center gap-1"
+                  >
+                    <X className="w-4 h-4" /> Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
 
-        <button type="submit" disabled={saving} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white py-4 rounded-2xl font-semibold text-lg">
-          {saving ? 'Saving...' : 'Save Profile'}
-        </button>
-      </form>
+          {/* Full Name */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Full Name *</label>
+            <input
+              type="text"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              className="w-full border rounded-2xl px-5 py-3"
+              required
+            />
+          </div>
+
+          {/* WhatsApp Number */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">WhatsApp Number</label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+27 71 234 5678"
+              className="w-full border rounded-2xl px-5 py-3"
+            />
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">Location</label>
+            <input
+              type="text"
+              name="location"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="Johannesburg"
+              className="w-full border rounded-2xl px-5 py-3"
+            />
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="block text-sm font-semibold mb-2">About You / Bio</label>
+            <textarea
+              name="bio"
+              value={formData.bio}
+              onChange={handleChange}
+              rows={4}
+              className="w-full border rounded-3xl px-5 py-3"
+              placeholder="Tell buyers about yourself..."
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2"
+          >
+            {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
+            {loading ? 'Saving...' : 'Save Profile & Continue'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
