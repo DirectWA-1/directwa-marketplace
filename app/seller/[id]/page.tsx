@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface SellerProfile {
@@ -10,6 +10,7 @@ interface SellerProfile {
   full_name: string;
   bio: string | null;
   location: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -41,16 +42,14 @@ export default function SellerProfilePage() {
     const fetchSellerData = async () => {
       setLoading(true);
 
-      // Fetch seller profile
       const { data: profileData } = await supabase
         .from('profiles')
-        .select('id, full_name, bio, location, created_at')
+        .select('id, full_name, bio, location, avatar_url, created_at')
         .eq('id', sellerId)
         .single();
 
       if (profileData) setProfile(profileData);
 
-      // Fetch active listings
       const { data: listingsData } = await supabase
         .from('listings')
         .select('id, title, price, location, images')
@@ -60,7 +59,6 @@ export default function SellerProfilePage() {
 
       if (listingsData) setListings(listingsData);
 
-      // Fetch reviews for average rating
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('rating')
@@ -111,15 +109,29 @@ export default function SellerProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
-      {/* Seller Header */}
+      {/* Seller Header with Avatar */}
       <div className="bg-white border rounded-3xl p-8 mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center gap-6">
+          
+          {/* Avatar */}
+          <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-200 flex-shrink-0">
+            {profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.full_name} 
+                className="w-full h-full object-cover" 
+              />
+            ) : (
+              <div className="w-full h-full bg-[#2E8B57] flex items-center justify-center text-white text-4xl font-semibold">
+                {profile.full_name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1">
             <h1 className="text-4xl font-bold text-[#1E3A5F]">{profile.full_name}</h1>
             <p className="text-gray-500 mt-1">Member since {memberSince}</p>
-            {profile.location && (
-              <p className="text-gray-500 mt-1">📍 {profile.location}</p>
-            )}
+            {profile.location && <p className="text-gray-500 mt-1">📍 {profile.location}</p>}
 
             {averageRating > 0 && (
               <div className="flex items-center gap-2 mt-3">
@@ -133,14 +145,14 @@ export default function SellerProfilePage() {
           <a
             href={`https://wa.me/27712345678?text=Hi%20${encodeURIComponent(profile.full_name)},%20I%20saw%20your%20profile%20on%20DirectWA`}
             target="_blank"
-            className="bg-[#25D366] hover:bg-[#128C7E] text-white px-6 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2"
+            className="bg-[#25D366] hover:bg-[#128C7E] text-white px-6 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2 self-start md:self-center"
           >
             💬 Chat on WhatsApp
           </a>
         </div>
 
         {profile.bio && (
-          <p className="mt-6 text-gray-700 max-w-2xl">{profile.bio}</p>
+          <p className="mt-6 text-gray-700 max-w-3xl">{profile.bio}</p>
         )}
       </div>
 
@@ -163,18 +175,10 @@ export default function SellerProfilePage() {
               return (
                 <Link href={`/listings/${listing.id}`} key={listing.id}>
                   <div className="bg-white border rounded-2xl overflow-hidden group hover:shadow-md transition">
-                    <img 
-                      src={image} 
-                      alt={listing.title} 
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform" 
-                    />
+                    <img src={image} alt={listing.title} className="w-full h-48 object-cover group-hover:scale-105 transition-transform" />
                     <div className="p-5">
-                      <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">
-                        {listing.title}
-                      </h3>
-                      <p className="text-xl font-bold text-[#1E3A5F] mt-2">
-                        R{listing.price.toLocaleString()}
-                      </p>
+                      <h3 className="font-semibold line-clamp-2 group-hover:text-[#2E8B57]">{listing.title}</h3>
+                      <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
                       <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
                     </div>
                   </div>
