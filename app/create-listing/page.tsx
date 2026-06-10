@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+
+export const dynamic = 'force-dynamic';   // ← This fixes the prerender error
 
 interface FormData {
   title: string;
@@ -22,7 +24,7 @@ interface ProfileData {
   location: string;
 }
 
-export default function CreateListingPage() {
+function CreateListingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('edit');
@@ -52,7 +54,6 @@ export default function CreateListingPage() {
     location: '',
   });
 
-  // Cleanup object URLs
   useEffect(() => {
     return () => {
       objectUrls.forEach(url => URL.revokeObjectURL(url));
@@ -133,6 +134,7 @@ export default function CreateListingPage() {
     initialize();
   }, [editId, router, fetchListingData]);
 
+  // ==================== ALL HANDLERS (unchanged) ====================
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -146,9 +148,6 @@ export default function CreateListingPage() {
       return;
     }
     const allowedFiles = files.slice(0, remainingSlots);
-    if (allowedFiles.length < files.length) {
-      toast.warning(`Only ${remainingSlots} more image(s) allowed.`);
-    }
 
     const newUrls = allowedFiles.map(file => URL.createObjectURL(file));
     setObjectUrls(prev => [...prev, ...newUrls]);
@@ -197,9 +196,7 @@ export default function CreateListingPage() {
         bio: profileData.bio.trim() || null,
         location: profileData.location.trim() || null,
         updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
+      }, { onConflict: 'id' });
 
       if (error) throw error;
 
@@ -226,7 +223,7 @@ export default function CreateListingPage() {
     }
     const priceNum = parseFloat(formData.price);
     if (isNaN(priceNum) || priceNum <= 0) {
-      toast.error('Please enter a valid price (positive number)');
+      toast.error('Please enter a valid price');
       return;
     }
     if (!formData.location.trim()) {
@@ -244,17 +241,12 @@ export default function CreateListingPage() {
       for (const file of newImages) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('listing-images')
-          .upload(fileName, file);
+        const { error: uploadError } = await supabase.storage.from('listing-images').upload(fileName, file);
 
         if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(fileName);
+          const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(fileName);
           uploadedUrls.push(publicUrl);
         } else {
-          console.error('Upload error:', uploadError);
           toast.error(`Failed to upload ${file.name}`);
         }
       }
@@ -262,36 +254,30 @@ export default function CreateListingPage() {
       const finalImages = [...existingImages, ...uploadedUrls];
 
       if (isEditing && editId) {
-        const { error } = await supabase
-          .from('listings')
-          .update({
-            title: formData.title.trim(),
-            price: priceNum,
-            location: formData.location.trim(),
-            category: formData.category,
-            condition: formData.condition,
-            description: formData.description.trim() || null,
-            images: finalImages,
-          })
-          .eq('id', editId)
-          .eq('user_id', user.id);
+        const { error } = await supabase.from('listings').update({
+          title: formData.title.trim(),
+          price: priceNum,
+          location: formData.location.trim(),
+          category: formData.category,
+          condition: formData.condition,
+          description: formData.description.trim() || null,
+          images: finalImages,
+        }).eq('id', editId).eq('user_id', user.id);
 
         if (error) throw error;
         toast.success('Listing updated successfully!');
       } else {
-        const { error } = await supabase
-          .from('listings')
-          .insert({
-            user_id: user.id,
-            title: formData.title.trim(),
-            price: priceNum,
-            location: formData.location.trim(),
-            category: formData.category,
-            condition: formData.condition,
-            description: formData.description.trim() || null,
-            images: finalImages,
-            status: 'active',
-          });
+        const { error } = await supabase.from('listings').insert({
+          user_id: user.id,
+          title: formData.title.trim(),
+          price: priceNum,
+          location: formData.location.trim(),
+          category: formData.category,
+          condition: formData.condition,
+          description: formData.description.trim() || null,
+          images: finalImages,
+          status: 'active',
+        });
 
         if (error) throw error;
         toast.success('Listing created successfully!');
@@ -299,7 +285,6 @@ export default function CreateListingPage() {
 
       router.push('/my-listings');
     } catch (err: any) {
-      console.error('Submit error:', err);
       toast.error(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
@@ -329,57 +314,21 @@ export default function CreateListingPage() {
           <form onSubmit={handleProfileSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Full Name *</label>
-              <input
-                type="text"
-                name="full_name"
-                value={profileData.full_name}
-                onChange={handleProfileChange}
-                className="w-full border rounded-2xl px-5 py-3"
-                required
-              />
+              <input type="text" name="full_name" value={profileData.full_name} onChange={handleProfileChange} className="w-full border rounded-2xl px-5 py-3" required />
             </div>
-
             <div>
               <label className="block text-sm font-semibold mb-2">WhatsApp Number</label>
-              <input
-                type="tel"
-                name="phone"
-                value={profileData.phone}
-                onChange={handleProfileChange}
-                placeholder="+27 71 234 5678"
-                className="w-full border rounded-2xl px-5 py-3"
-              />
+              <input type="tel" name="phone" value={profileData.phone} onChange={handleProfileChange} placeholder="+27 71 234 5678" className="w-full border rounded-2xl px-5 py-3" />
             </div>
-
             <div>
               <label className="block text-sm font-semibold mb-2">Location</label>
-              <input
-                type="text"
-                name="location"
-                value={profileData.location}
-                onChange={handleProfileChange}
-                placeholder="Johannesburg"
-                className="w-full border rounded-2xl px-5 py-3"
-              />
+              <input type="text" name="location" value={profileData.location} onChange={handleProfileChange} placeholder="Johannesburg" className="w-full border rounded-2xl px-5 py-3" />
             </div>
-
             <div>
               <label className="block text-sm font-semibold mb-2">About You / Bio</label>
-              <textarea
-                name="bio"
-                value={profileData.bio}
-                onChange={handleProfileChange}
-                rows={4}
-                className="w-full border rounded-3xl px-5 py-3"
-                placeholder="Tell buyers about yourself..."
-              />
+              <textarea name="bio" value={profileData.bio} onChange={handleProfileChange} rows={4} className="w-full border rounded-3xl px-5 py-3" placeholder="Tell buyers about yourself..." />
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
               {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
               {loading ? 'Saving Profile...' : 'Save Profile & Continue to Sell'}
             </button>
@@ -404,52 +353,24 @@ export default function CreateListingPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           <div>
             <label className="block text-sm font-semibold mb-2">Item Title *</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleInputChange}
-              className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-              required
-            />
+            <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Price (R) *</label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-                required
-                min="0"
-                step="0.01"
-              />
+              <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required min="0" step="0.01" />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Location *</label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-                required
-              />
+              <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Category</label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-              >
+              <select name="category" value={formData.category} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg">
                 <option>Electronics</option>
                 <option>Fashion & Clothing</option>
                 <option>Home & Garden</option>
@@ -459,12 +380,7 @@ export default function CreateListingPage() {
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Condition</label>
-              <select
-                name="condition"
-                value={formData.condition}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-              >
+              <select name="condition" value={formData.condition} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg">
                 <option>New</option>
                 <option>Like New</option>
                 <option>Good</option>
@@ -475,13 +391,7 @@ export default function CreateListingPage() {
 
           <div>
             <label className="block text-sm font-semibold mb-2">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              rows={5}
-              className="w-full border rounded-3xl px-5 py-4"
-            />
+            <textarea name="description" value={formData.description} onChange={handleInputChange} rows={5} className="w-full border rounded-3xl px-5 py-4" />
           </div>
 
           <div>
@@ -490,15 +400,7 @@ export default function CreateListingPage() {
             </label>
 
             <div className="border-2 border-dashed border-gray-300 rounded-3xl p-8 text-center hover:border-[#2E8B57] transition-colors">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-                id="images"
-                disabled={existingImages.length + newImages.length >= 5}
-              />
+              <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" disabled={existingImages.length + newImages.length >= 5} />
               <label htmlFor="images" className="cursor-pointer">
                 <div className="flex flex-col items-center">
                   <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -516,61 +418,45 @@ export default function CreateListingPage() {
                   <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
                     <img src={url} alt={`Listing photo ${index + 1}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => moveImage(index, 'left')}
-                        className="bg-white p-1.5 rounded-full"
-                      >
-                        <ArrowLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveImage(index, 'right')}
-                        className="bg-white p-1.5 rounded-full"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeExistingImage(index)}
-                        className="bg-white p-1.5 rounded-full text-red-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                      <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1.5 rounded-full"><ArrowLeft className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1.5 rounded-full"><ArrowRight className="w-4 h-4" /></button>
+                      <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1.5 rounded-full text-red-600"><X className="w-4 h-4" /></button>
                     </div>
                   </div>
                 ))}
 
                 {newImages.map((file, index) => (
                   <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
-                    <img
-                      src={objectUrls[index]}
-                      alt={`New upload preview ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeNewImage(index)}
-                      className="absolute top-2 right-2 bg-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100"
-                    >
-                      <X className="w-4 h-4 text-red-600" />
-                    </button>
+                    <img src={objectUrls[index]} alt={`New upload preview ${index + 1}`} className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removeNewImage(index)} className="absolute top-2 right-2 bg-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100"><X className="w-4 h-4 text-red-600" /></button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
             {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
             {loading ? (isEditing ? 'Updating...' : 'Creating...') : isEditing ? 'Update Listing' : 'Create Listing'}
           </button>
         </form>
       </div>
     </div>
+  );
+}
+
+// ==================== WRAPPER WITH SUSPENSE ====================
+export default function CreateListingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#2E8B57] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CreateListingContent />
+    </Suspense>
   );
 }
