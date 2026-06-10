@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Handshake, ShieldCheck, MapPin } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -32,7 +33,53 @@ export default function Home() {
         </div>
       </section>
 
-      {/* You can add more sections below (Featured, How it Works, etc.) */}
+      {/* === NEW SECTION: Three Feature Cards === */}
+      <section className="max-w-6xl mx-auto px-4 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          {/* Direct Connection */}
+          <div className="text-center p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+                <Handshake className="w-8 h-8 text-yellow-600" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-[#1E3A5F] mb-3">Direct Connection</h3>
+            <p className="text-gray-600">
+              Chat directly with buyers and sellers via WhatsApp. No middleman.
+            </p>
+          </div>
+
+          {/* Safe & Secure */}
+          <div className="text-center p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <ShieldCheck className="w-8 h-8 text-blue-600" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-[#1E3A5F] mb-3">Safe & Secure</h3>
+            <p className="text-gray-600">
+              Built-in escrow protection for high-value transactions.
+            </p>
+          </div>
+
+          {/* Local Focus */}
+          <div className="text-center p-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                <MapPin className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+            <h3 className="text-xl font-semibold text-[#1E3A5F] mb-3">Local Focus</h3>
+            <p className="text-gray-600">
+              Built for South Africa. Fast local deliveries and meetups.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* You can continue adding more sections below (e.g. How it Works, Featured Listings, etc.) */}
     </div>
   );
 }
