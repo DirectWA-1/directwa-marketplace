@@ -1,118 +1,58 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
-    <footer className="bg-[#F8FAFC] border-t">
-      <div className="max-w-7xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-x-10 gap-y-14">
+    <footer className="bg-white border-t mt-auto">
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-y-10">
           
-          {/* Brand + Description */}
-          <div className="lg:col-span-2">
-            <Link href="/" className="text-3xl font-bold tracking-tight text-[#1E3A5F]">
-              DirectWA
+          {/* Logo + About */}
+          <div>
+            <Link href="/" className="flex items-center mb-4">
+              <Image 
+                src="/logo.png" 
+                alt="DirectWA" 
+                width={130} 
+                height={36} 
+                className="h-8 w-auto"
+              />
             </Link>
-            <p className="mt-4 max-w-sm text-gray-600 leading-relaxed">
-              South Africa’s simple WhatsApp-first marketplace. 
-              Buy and sell locally with no middleman fees.
-            </p>
-
-            {/* Subtle tagline */}
-            <p className="mt-6 text-sm text-gray-500">
-              Built with ❤️ in South Africa
+            <p className="text-sm text-gray-600 max-w-xs">
+              Buy and sell locally across South Africa. Simple. Safe. Direct.
             </p>
           </div>
 
-          {/* Platform */}
+          {/* Explore */}
           <div>
-            <h4 className="font-semibold text-[#1E3A5F] mb-5 tracking-wide text-sm uppercase">
-              Platform
-            </h4>
-            <ul className="space-y-[10px] text-[15px] text-gray-600">
-              <li>
-                <Link href="/listings" className="hover:text-[#2E8B57] transition-colors">
-                  Browse Listings
-                </Link>
-              </li>
-              <li>
-                <Link href="/create-listing" className="hover:text-[#2E8B57] transition-colors">
-                  Start Selling
-                </Link>
-              </li>
-              <li>
-                <Link href="/how-it-works" className="hover:text-[#2E8B57] transition-colors">
-                  How it Works
-                </Link>
-              </li>
-              <li>
-                <Link href="/escrow-protection" className="hover:text-[#2E8B57] transition-colors">
-                  Escrow Protection
-                </Link>
-              </li>
+            <h4 className="font-semibold mb-4">Explore</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li><Link href="/listings">Browse Listings</Link></li>
+              <li><Link href="/create-listing">Sell an Item</Link></li>
+              <li><Link href="/how-it-works">How it Works</Link></li>
             </ul>
           </div>
 
-          {/* Company */}
+          {/* Support */}
           <div>
-            <h4 className="font-semibold text-[#1E3A5F] mb-5 tracking-wide text-sm uppercase">
-              Company
-            </h4>
-            <ul className="space-y-[10px] text-[15px] text-gray-600">
-              <li>
-                <Link href="/about" className="hover:text-[#2E8B57] transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
-                <Link href="/seller/dashboard" className="hover:text-[#2E8B57] transition-colors">
-                  Seller Dashboard
-                </Link>
-              </li>
-              <li>
-                <a 
-                  href="mailto:support@directwa.co.za" 
-                  className="hover:text-[#2E8B57] transition-colors"
-                >
-                  Contact Support
-                </a>
-              </li>
+            <h4 className="font-semibold mb-4">Support</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li><Link href="/escrow-protection">Escrow Protection</Link></li>
+              <li><Link href="/privacy">Privacy Policy</Link></li>
+              <li><Link href="/terms">Terms of Service</Link></li>
             </ul>
           </div>
 
-          {/* Legal */}
+          {/* Contact */}
           <div>
-            <h4 className="font-semibold text-[#1E3A5F] mb-5 tracking-wide text-sm uppercase">
-              Legal
-            </h4>
-            <ul className="space-y-[10px] text-[15px] text-gray-600">
-              <li>
-                <Link href="/terms" className="hover:text-[#2E8B57] transition-colors">
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-[#2E8B57] transition-colors">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/seller-agreement" className="hover:text-[#2E8B57] transition-colors">
-                  Seller Agreement
-                </Link>
-              </li>
-            </ul>
+            <h4 className="font-semibold mb-4">Contact</h4>
+            <p className="text-sm text-gray-600">support@directwa.co.za</p>
+            <p className="text-sm text-gray-600 mt-1">Johannesburg, South Africa</p>
           </div>
         </div>
-      </div>
 
-      {/* Bottom Bar */}
-      <div className="border-t bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <p>
-            © {new Date().getFullYear()} DirectWA. All rights reserved.
-          </p>
-          <p className="text-center">
-            Made for South Africans, by South Africans.
-          </p>
+        <div className="border-t mt-10 pt-6 text-center text-sm text-gray-500">
+          © {new Date().getFullYear()} DirectWA. All rights reserved.
         </div>
       </div>
     </footer>

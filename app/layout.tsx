@@ -11,18 +11,9 @@ export const metadata: Metadata = {
   },
   description: "DirectWA is a simple C2C marketplace connecting buyers and sellers directly via WhatsApp in South Africa. No middleman fees. Fast, local, and trustworthy.",
   icons: {
-    icon: "/favicon.ico",
-  },
-  openGraph: {
-    title: "DirectWA - Buy & Sell Locally in South Africa",
-    description: "Connect directly with buyers and sellers. No middleman fees. Fast, local, and trustworthy.",
-    images: [
-      {
-        url: "/og-image.jpg",
-        width: 1200,
-        height: 630,
-      },
-    ],
+    icon: "/logo-icon.png",
+    shortcut: "/logo-icon.png",
+    apple: "/logo-icon.png",
   },
 };
 
@@ -34,18 +25,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-gray-50 min-h-screen flex flex-col">
-        {/* Navbar */}
         <Navbar />
-
-        {/* Main Content */}
         <main className="flex-1">
           {children}
         </main>
-
-        {/* Footer */}
         <Footer />
-
-        {/* Vercel Analytics */}
         <Analytics />
       </body>
     </html>
