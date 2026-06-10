@@ -82,6 +82,7 @@ export default function ListingDetail() {
     setLoading(false);
   };
 
+  // ✅ Updated addToCart with correct event dispatch
   const addToCart = () => {
     if (!listing) return;
 
@@ -102,7 +103,9 @@ export default function ListingDetail() {
     });
 
     localStorage.setItem('cart', JSON.stringify(cart));
-    window.dispatchEvent(new Event('storage'));
+
+    // Dispatch event so Navbar updates instantly
+    window.dispatchEvent(new Event('cartUpdated'));
 
     toast.success('Added to cart!', {
       description: listing.title,
@@ -223,7 +226,7 @@ export default function ListingDetail() {
           <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
           <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          {/* ✅ Updated Seller Link */}
+          {/* Seller Link */}
           <div className="mb-8">
             <p className="text-sm text-gray-500 mb-1.5">Sold by</p>
             <Link 
@@ -247,7 +250,10 @@ export default function ListingDetail() {
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <button onClick={addToCart} className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg">
+            <button 
+              onClick={addToCart} 
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg"
+            >
               Add to Cart
             </button>
             <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg">
@@ -292,7 +298,11 @@ export default function ListingDetail() {
                 />
               </div>
 
-              <button type="submit" disabled={submitting} className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70">
+              <button 
+                type="submit" 
+                disabled={submitting} 
+                className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70"
+              >
                 {submitting ? 'Submitting...' : 'Submit Review'}
               </button>
             </form>

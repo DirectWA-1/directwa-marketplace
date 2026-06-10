@@ -15,6 +15,7 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
   const [user, setUser] = useState<any>(null);
   const [lastRemoved, setLastRemoved] = useState<any>(null);
 
+  // Check if item is in wishlist
   useEffect(() => {
     const checkWishlist = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -56,11 +57,13 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
         setIsWishlisted(false);
         setLastRemoved(removedItem);
 
+        // Dispatch event so Navbar updates count
+        window.dispatchEvent(new Event('wishlistUpdated'));
+
         toast.success('Removed from wishlist', {
           action: {
             label: 'Undo',
             onClick: async () => {
-              // Undo - re-add to wishlist
               const { error } = await supabase.from('wishlists').insert({
                 user_id: user.id,
                 listing_id: listingId,
@@ -68,6 +71,7 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
 
               if (!error) {
                 setIsWishlisted(true);
+                window.dispatchEvent(new Event('wishlistUpdated'));
                 toast.success('Restored to wishlist');
               }
             },
@@ -83,6 +87,7 @@ export default function WishlistButton({ listingId }: WishlistButtonProps) {
 
       if (!error) {
         setIsWishlisted(true);
+        window.dispatchEvent(new Event('wishlistUpdated'));
         toast.success('Added to wishlist');
       } else {
         toast.error('Failed to add to wishlist');

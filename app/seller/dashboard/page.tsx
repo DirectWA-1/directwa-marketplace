@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Upload, X } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Listing {
@@ -28,7 +28,7 @@ export default function SellerDashboard() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Avatar editing states
+  // Avatar modal states
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
   const [newAvatarPreview, setNewAvatarPreview] = useState('');
@@ -44,7 +44,7 @@ export default function SellerDashboard() {
 
       setUser(user);
 
-      // Fetch profile (name + avatar)
+      // Fetch profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name, avatar_url')
@@ -90,11 +90,15 @@ export default function SellerDashboard() {
     fetchData();
   }, []);
 
+  // ==================== CALCULATED STATS ====================
+  const totalRevenue = soldListings.reduce((sum, listing) => sum + listing.price, 0);
+  const totalSales = soldListings.length;
+  const averageSaleValue = totalSales > 0 ? Math.round(totalRevenue / totalSales) : 0;
   const averageRating = reviews.length > 0 
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) 
     : 0;
 
-  // Handle avatar file selection
+  // ==================== AVATAR HANDLERS ====================
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -103,7 +107,6 @@ export default function SellerDashboard() {
     }
   };
 
-  // Upload new avatar
   const handleAvatarUpload = async () => {
     if (!newAvatarFile || !user) return;
 
@@ -123,10 +126,9 @@ export default function SellerDashboard() {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .update({ avatar_url: publicUrl })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
@@ -138,26 +140,19 @@ export default function SellerDashboard() {
 
       toast.success('Profile picture updated successfully!');
     } catch (err: any) {
-      console.error(err);
       toast.error(err.message || 'Failed to update profile picture');
     } finally {
       setUploadingAvatar(false);
     }
   };
 
-  const closeAvatarModal = () => {
-    setShowAvatarModal(false);
-    setNewAvatarFile(null);
-    setNewAvatarPreview('');
-  };
-
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return <div className="p-8">Loading dashboard...</div>;
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header with Avatar + Edit Profile Button */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <div className="relative group">
@@ -170,8 +165,6 @@ export default function SellerDashboard() {
                 </div>
               )}
             </div>
-            
-            {/* Edit Avatar Button */}
             <button
               onClick={() => setShowAvatarModal(true)}
               className="absolute -bottom-1 -right-1 bg-white border border-gray-300 rounded-full p-1.5 shadow-sm hover:bg-gray-50"
@@ -182,7 +175,7 @@ export default function SellerDashboard() {
 
           <div>
             <h1 className="text-3xl font-bold text-[#1E3A5F]">Welcome back, {userName?.split(' ')[0]}!</h1>
-            <p className="text-gray-600">Here's an overview of your store.</p>
+            <p className="text-gray-600">Here's how your store is performing.</p>
           </div>
         </div>
 
@@ -194,7 +187,34 @@ export default function SellerDashboard() {
         </Link>
       </div>
 
-      {/* Stats Cards */}
+      {/* ==================== EARNINGS OVERVIEW ==================== */}
+      <div className="mb-10">
+        <h2 className="text-xl font-semibold text-[#1E3A5F] mb-4">Earnings Overview</h2>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-sm text-gray-500">Total Revenue</p>
+            <p className="text-4xl font-bold text-[#1E3A5F] mt-2">R{totalRevenue.toLocaleString()}</p>
+          </div>
+
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-sm text-gray-500">Total Sales</p>
+            <p className="text-4xl font-bold text-[#1E3A5F] mt-2">{totalSales}</p>
+          </div>
+
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-sm text-gray-500">Avg. Sale Value</p>
+            <p className="text-4xl font-bold text-[#1E3A5F] mt-2">R{averageSaleValue.toLocaleString()}</p>
+          </div>
+
+          <div className="bg-white border rounded-2xl p-6">
+            <p className="text-sm text-gray-500">Average Rating</p>
+            <p className="text-4xl font-bold text-[#1E3A5F] mt-2">{averageRating}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
         <div className="bg-white border rounded-2xl p-6">
           <p className="text-sm text-gray-500">Active Listings</p>
@@ -209,15 +229,33 @@ export default function SellerDashboard() {
           <p className="text-4xl font-bold text-[#1E3A5F] mt-2">{reviews.length}</p>
         </div>
         <div className="bg-white border rounded-2xl p-6">
-          <p className="text-sm text-gray-500">Average Rating</p>
-          <p className="text-4xl font-bold text-[#1E3A5F] mt-2">{averageRating}</p>
+          <p className="text-sm text-gray-500">This Month's Sales</p>
+          <p className="text-4xl font-bold text-[#1E3A5F] mt-2">
+            {soldListings.filter(l => new Date(l.created_at).getMonth() === new Date().getMonth()).length}
+          </p>
+        </div>
+      </div>
+
+      {/* ==================== AVAILABLE BALANCE + WITHDRAW ==================== */}
+      <div className="bg-white border rounded-2xl p-6 mb-10">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm text-gray-500">Available Balance</p>
+            <p className="text-4xl font-bold text-green-600 mt-1">R{totalRevenue.toLocaleString()}</p>
+          </div>
+          <Link 
+            href="/seller/withdrawals" 
+            className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-8 py-3 rounded-2xl font-semibold text-center"
+          >
+            Withdraw Funds
+          </Link>
         </div>
       </div>
 
       {/* Active Listings */}
       <div className="mb-10">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-[#1E3A5F]">Active Listings</h2>
+          <h2 className="text-2xl font-semibold text-[#1E3A5F]">Active Listings ({activeListings.length})</h2>
           <Link href="/create-listing" className="bg-[#2E8B57] text-white px-4 py-2 rounded-xl text-sm font-medium">
             + Create New Listing
           </Link>
@@ -251,9 +289,9 @@ export default function SellerDashboard() {
       {/* Sold Listings */}
       {soldListings.length > 0 && (
         <div>
-          <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">Sold Listings</h2>
+          <h2 className="text-2xl font-semibold text-[#1E3A5F] mb-6">Recent Sales</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {soldListings.map((listing) => {
+            {soldListings.slice(0, 8).map((listing) => {
               const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
               return (
                 <div key={listing.id} className="bg-white border rounded-2xl overflow-hidden opacity-90">
@@ -275,19 +313,14 @@ export default function SellerDashboard() {
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">Update Profile Picture</h3>
-              <button onClick={closeAvatarModal} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+            <h3 className="text-xl font-semibold mb-6">Update Profile Picture</h3>
+            
             <div className="flex flex-col items-center">
               <div className="w-32 h-32 rounded-full overflow-hidden border border-gray-300 mb-6">
                 {newAvatarPreview ? (
-                  <img src={newAvatarPreview} alt="New avatar preview" className="w-full h-full object-cover" />
+                  <img src={newAvatarPreview} alt="Preview" className="w-full h-full object-cover" />
                 ) : userAvatar ? (
-                  <img src={userAvatar} alt="Current avatar" className="w-full h-full object-cover" />
+                  <img src={userAvatar} alt="Current" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-[#2E8B57] flex items-center justify-center text-white text-4xl font-semibold">
                     {userName?.charAt(0).toUpperCase()}
@@ -297,23 +330,18 @@ export default function SellerDashboard() {
 
               <label className="cursor-pointer bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 mb-4">
                 Choose New Photo
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handleAvatarSelect} 
-                  className="hidden" 
-                />
+                <input type="file" accept="image/*" onChange={handleAvatarSelect} className="hidden" />
               </label>
 
               <div className="flex gap-3 w-full">
-                <button
-                  onClick={closeAvatarModal}
+                <button 
+                  onClick={() => setShowAvatarModal(false)} 
                   className="flex-1 border border-gray-300 py-3 rounded-2xl font-medium"
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleAvatarUpload}
+                <button 
+                  onClick={handleAvatarUpload} 
                   disabled={!newAvatarFile || uploadingAvatar}
                   className="flex-1 bg-[#2E8B57] text-white py-3 rounded-2xl font-medium disabled:bg-gray-400"
                 >
