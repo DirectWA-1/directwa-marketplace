@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Listing {
   id: string;
@@ -25,6 +27,12 @@ export default function SellerDashboard() {
   const [soldListings, setSoldListings] = useState<Listing[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Avatar editing states
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null);
+  const [newAvatarPreview, setNewAvatarPreview] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,30 +94,107 @@ export default function SellerDashboard() {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1) 
     : 0;
 
+  // Handle avatar file selection
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewAvatarFile(file);
+      setNewAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  // Upload new avatar
+  const handleAvatarUpload = async () => {
+    if (!newAvatarFile || !user) return;
+
+    setUploadingAvatar(true);
+
+    try {
+      const fileExt = newAvatarFile.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, newAvatarFile, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setUserAvatar(publicUrl);
+      setShowAvatarModal(false);
+      setNewAvatarFile(null);
+      setNewAvatarPreview('');
+
+      toast.success('Profile picture updated successfully!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to update profile picture');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const closeAvatarModal = () => {
+    setShowAvatarModal(false);
+    setNewAvatarFile(null);
+    setNewAvatarPreview('');
+  };
+
   if (loading) {
     return <div className="p-8">Loading...</div>;
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header with Avatar */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200">
-          {userAvatar ? (
-            <img src={userAvatar} alt="Your avatar" className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-[#2E8B57] flex items-center justify-center text-white text-2xl font-semibold">
-              {userName?.charAt(0).toUpperCase()}
+      {/* Header with Avatar + Edit Profile Button */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <div className="w-16 h-16 rounded-full overflow-hidden border border-gray-200">
+              {userAvatar ? (
+                <img src={userAvatar} alt="Your avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#2E8B57] flex items-center justify-center text-white text-2xl font-semibold">
+                  {userName?.charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
-          )}
+            
+            {/* Edit Avatar Button */}
+            <button
+              onClick={() => setShowAvatarModal(true)}
+              className="absolute -bottom-1 -right-1 bg-white border border-gray-300 rounded-full p-1.5 shadow-sm hover:bg-gray-50"
+            >
+              <Upload className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
+
+          <div>
+            <h1 className="text-3xl font-bold text-[#1E3A5F]">Welcome back, {userName?.split(' ')[0]}!</h1>
+            <p className="text-gray-600">Here's an overview of your store.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E3A5F]">Welcome back, {userName?.split(' ')[0]}!</h1>
-          <p className="text-gray-600">Here's an overview of your store.</p>
-        </div>
+
+        <Link 
+          href="/seller/edit-profile" 
+          className="bg-white border border-gray-300 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-50"
+        >
+          Edit Profile
+        </Link>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
         <div className="bg-white border rounded-2xl p-6">
           <p className="text-sm text-gray-500">Active Listings</p>
@@ -182,6 +267,60 @@ export default function SellerDashboard() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Avatar Edit Modal */}
+      {showAvatarModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">Update Profile Picture</h3>
+              <button onClick={closeAvatarModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <div className="w-32 h-32 rounded-full overflow-hidden border border-gray-300 mb-6">
+                {newAvatarPreview ? (
+                  <img src={newAvatarPreview} alt="New avatar preview" className="w-full h-full object-cover" />
+                ) : userAvatar ? (
+                  <img src={userAvatar} alt="Current avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-[#2E8B57] flex items-center justify-center text-white text-4xl font-semibold">
+                    {userName?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <label className="cursor-pointer bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 mb-4">
+                Choose New Photo
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={handleAvatarSelect} 
+                  className="hidden" 
+                />
+              </label>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={closeAvatarModal}
+                  className="flex-1 border border-gray-300 py-3 rounded-2xl font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAvatarUpload}
+                  disabled={!newAvatarFile || uploadingAvatar}
+                  className="flex-1 bg-[#2E8B57] text-white py-3 rounded-2xl font-medium disabled:bg-gray-400"
+                >
+                  {uploadingAvatar ? 'Uploading...' : 'Save Photo'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
