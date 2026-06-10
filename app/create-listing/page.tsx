@@ -1,12 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
 import { Upload, X, ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
-
-export const dynamic = 'force-dynamic';
 
 interface FormData {
   title: string;
@@ -17,11 +15,19 @@ interface FormData {
   description: string;
 }
 
+interface ProfileData {
+  full_name: string;
+  phone: string;
+  bio: string;
+  location: string;
+}
+
 export default function CreateListingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
+  const isEditing = !!editId;
 
-  const [editId, setEditId] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [showProfileForm, setShowProfileForm] = useState(false);
@@ -37,41 +43,69 @@ export default function CreateListingPage() {
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [newImages, setNewImages] = useState<File[]>([]);
+  const [objectUrls, setObjectUrls] = useState<string[]>([]);
 
-  // Profile form state
-  const [profileData, setProfileData] = useState({
+  const [profileData, setProfileData] = useState<ProfileData>({
     full_name: '',
     phone: '',
     bio: '',
     location: '',
   });
 
-  // Read editId from URL
+  // Cleanup object URLs
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('edit');
-    if (id) {
-      setEditId(id);
-      setIsEditing(true);
-    }
-  }, []);
+    return () => {
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [objectUrls]);
 
-  // Check auth + profile completeness
+  const fetchListingData = useCallback(async (id: string, userId: string) => {
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching listing:', error);
+      toast.error('Could not load listing data');
+      router.push('/my-listings');
+      return false;
+    }
+
+    if (listing) {
+      setFormData({
+        title: listing.title || '',
+        price: listing.price?.toString() || '',
+        location: listing.location || '',
+        category: listing.category || 'Electronics',
+        condition: listing.condition || 'Good',
+        description: listing.description || '',
+      });
+      setExistingImages(listing.images || []);
+    }
+    return true;
+  }, [router]);
+
   useEffect(() => {
     const initialize = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-
         if (!user) {
           router.push('/login');
           return;
         }
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('full_name, phone, bio, location')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Profile fetch error:', profileError);
+        }
 
         if (!profile || !profile.full_name) {
           setShowProfileForm(true);
@@ -85,36 +119,192 @@ export default function CreateListingPage() {
           }
         } else {
           if (editId) {
-            setIsEditing(true);
-            const { data: listing } = await supabase
-              .from('listings')
-              .select('*')
-              .eq('id', editId)
-              .eq('user_id', user.id)
-              .single();
-
-            if (listing) {
-              setFormData({
-                title: listing.title || '',
-                price: listing.price?.toString() || '',
-                location: listing.location || '',
-                category: listing.category || 'Electronics',
-                condition: listing.condition || 'Good',
-                description: listing.description || '',
-              });
-              setExistingImages(listing.images || []);
-            }
+            await fetchListingData(editId, user.id);
           }
         }
       } catch (err: any) {
-        console.error(err);
+        console.error('Initialization error:', err);
+        toast.error(err.message || 'Something went wrong');
       } finally {
         setChecking(false);
       }
     };
 
     initialize();
-  }, [editId, router]);
+  }, [editId, router, fetchListingData]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remainingSlots = 5 - (existingImages.length + newImages.length);
+    if (remainingSlots <= 0) {
+      toast.warning('You can upload up to 5 images only');
+      return;
+    }
+    const allowedFiles = files.slice(0, remainingSlots);
+    if (allowedFiles.length < files.length) {
+      toast.warning(`Only ${remainingSlots} more image(s) allowed.`);
+    }
+
+    const newUrls = allowedFiles.map(file => URL.createObjectURL(file));
+    setObjectUrls(prev => [...prev, ...newUrls]);
+    setNewImages(prev => [...prev, ...allowedFiles]);
+  };
+
+  const removeNewImage = (index: number) => {
+    URL.revokeObjectURL(objectUrls[index]);
+    setObjectUrls(prev => prev.filter((_, i) => i !== index));
+    setNewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveImage = (index: number, direction: 'left' | 'right') => {
+    const newIndex = direction === 'left' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= existingImages.length) return;
+    const updated = [...existingImages];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    setExistingImages(updated);
+  };
+
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileData.full_name.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase.from('profiles').upsert({
+        id: user.id,
+        full_name: profileData.full_name.trim(),
+        phone: profileData.phone.trim() || null,
+        bio: profileData.bio.trim() || null,
+        location: profileData.location.trim() || null,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'id'
+      });
+
+      if (error) throw error;
+
+      toast.success('Profile saved successfully!');
+      setShowProfileForm(false);
+
+      if (editId) {
+        await fetchListingData(editId, user.id);
+      }
+    } catch (err: any) {
+      console.error('Profile save error:', err);
+      toast.error(err.message || 'Failed to save profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      toast.error('Please enter a title');
+      return;
+    }
+    const priceNum = parseFloat(formData.price);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      toast.error('Please enter a valid price (positive number)');
+      return;
+    }
+    if (!formData.location.trim()) {
+      toast.error('Please enter a location');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be logged in');
+
+      let uploadedUrls: string[] = [];
+
+      for (const file of newImages) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('listing-images')
+          .upload(fileName, file);
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('listing-images')
+            .getPublicUrl(fileName);
+          uploadedUrls.push(publicUrl);
+        } else {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}`);
+        }
+      }
+
+      const finalImages = [...existingImages, ...uploadedUrls];
+
+      if (isEditing && editId) {
+        const { error } = await supabase
+          .from('listings')
+          .update({
+            title: formData.title.trim(),
+            price: priceNum,
+            location: formData.location.trim(),
+            category: formData.category,
+            condition: formData.condition,
+            description: formData.description.trim() || null,
+            images: finalImages,
+          })
+          .eq('id', editId)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        toast.success('Listing updated successfully!');
+      } else {
+        const { error } = await supabase
+          .from('listings')
+          .insert({
+            user_id: user.id,
+            title: formData.title.trim(),
+            price: priceNum,
+            location: formData.location.trim(),
+            category: formData.category,
+            condition: formData.condition,
+            description: formData.description.trim() || null,
+            images: finalImages,
+            status: 'active',
+          });
+
+        if (error) throw error;
+        toast.success('Listing created successfully!');
+      }
+
+      router.push('/my-listings');
+    } catch (err: any) {
+      console.error('Submit error:', err);
+      toast.error(err.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (checking) {
     return (
@@ -127,53 +317,7 @@ export default function CreateListingPage() {
     );
   }
 
-  // ==================== SELLER PROFILE FORM ====================
   if (showProfileForm) {
-    const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value } = e.target;
-      setProfileData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleProfileSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-
-      if (!profileData.full_name.trim()) {
-        toast.error('Full name is required');
-        return;
-      }
-
-      setLoading(true);
-
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast.error('You must be logged in');
-          setLoading(false);
-          return;
-        }
-
-        const { error } = await supabase.from('profiles').upsert({
-          id: user.id,
-          full_name: profileData.full_name.trim(),
-          phone: profileData.phone.trim() || null,
-          bio: profileData.bio.trim() || null,
-          location: profileData.location.trim() || null,
-          updated_at: new Date().toISOString(),
-        });
-
-        if (error) throw error;
-
-        toast.success('Profile saved successfully!');
-        setShowProfileForm(false);
-
-      } catch (err: any) {
-        console.error(err);
-        toast.error(err.message || 'Failed to save profile');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     return (
       <div className="max-w-2xl mx-auto px-4 py-10">
         <div className="text-center mb-8">
@@ -185,119 +329,65 @@ export default function CreateListingPage() {
           <form onSubmit={handleProfileSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Full Name *</label>
-              <input type="text" name="full_name" value={profileData.full_name} onChange={handleProfileChange} className="w-full border rounded-2xl px-5 py-3" required />
+              <input
+                type="text"
+                name="full_name"
+                value={profileData.full_name}
+                onChange={handleProfileChange}
+                className="w-full border rounded-2xl px-5 py-3"
+                required
+              />
             </div>
 
             <div>
               <label className="block text-sm font-semibold mb-2">WhatsApp Number</label>
-              <input type="tel" name="phone" value={profileData.phone} onChange={handleProfileChange} placeholder="+27 71 234 5678" className="w-full border rounded-2xl px-5 py-3" />
+              <input
+                type="tel"
+                name="phone"
+                value={profileData.phone}
+                onChange={handleProfileChange}
+                placeholder="+27 71 234 5678"
+                className="w-full border rounded-2xl px-5 py-3"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-semibold mb-2">Location</label>
-              <input type="text" name="location" value={profileData.location} onChange={handleProfileChange} placeholder="Johannesburg" className="w-full border rounded-2xl px-5 py-3" />
+              <input
+                type="text"
+                name="location"
+                value={profileData.location}
+                onChange={handleProfileChange}
+                placeholder="Johannesburg"
+                className="w-full border rounded-2xl px-5 py-3"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-semibold mb-2">About You / Bio</label>
-              <textarea name="bio" value={profileData.bio} onChange={handleProfileChange} rows={4} className="w-full border rounded-3xl px-5 py-3" placeholder="Tell buyers about yourself..." />
+              <textarea
+                name="bio"
+                value={profileData.bio}
+                onChange={handleProfileChange}
+                rows={4}
+                className="w-full border rounded-3xl px-5 py-3"
+                placeholder="Tell buyers about yourself..."
+              />
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg">
-              {loading ? 'Saving...' : 'Save Profile & Continue to Sell'}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2"
+            >
+              {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
+              {loading ? 'Saving Profile...' : 'Save Profile & Continue to Sell'}
             </button>
           </form>
         </div>
       </div>
     );
   }
-
-  // ==================== CREATE / EDIT LISTING FORM ====================
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      setNewImages(prev => [...prev, ...files].slice(0, 5 - existingImages.length));
-    }
-  };
-
-  const removeNewImage = (index: number) => setNewImages(prev => prev.filter((_, i) => i !== index));
-  const removeExistingImage = (index: number) => setExistingImages(prev => prev.filter((_, i) => i !== index));
-
-  const moveImage = (index: number, direction: 'left' | 'right') => {
-    const newIndex = direction === 'left' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= existingImages.length) return;
-    const updated = [...existingImages];
-    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
-    setExistingImages(updated);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Please log in');
-        setLoading(false);
-        return;
-      }
-
-      let uploadedUrls: string[] = [];
-      for (const file of newImages) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('listing-images').upload(fileName, file);
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-          uploadedUrls.push(publicUrl);
-        }
-      }
-
-      const finalImages = [...existingImages, ...uploadedUrls];
-
-      if (isEditing && editId) {
-        const { error } = await supabase.from('listings').update({
-          title: formData.title.trim(),
-          price: parseFloat(formData.price),
-          location: formData.location.trim(),
-          category: formData.category,
-          condition: formData.condition,
-          description: formData.description.trim() || null,
-          images: finalImages,
-        }).eq('id', editId).eq('user_id', user.id);
-
-        if (error) throw error;
-        toast.success('Listing updated successfully!');
-      } else {
-        const { error } = await supabase.from('listings').insert({
-          user_id: user.id,
-          title: formData.title.trim(),
-          price: parseFloat(formData.price),
-          location: formData.location.trim(),
-          category: formData.category,
-          condition: formData.condition,
-          description: formData.description.trim() || null,
-          images: finalImages,
-          status: 'active',
-        });
-
-        if (error) throw error;
-        toast.success('Listing created successfully!');
-      }
-
-      setTimeout(() => router.push('/my-listings'), 1200);
-    } catch (err: any) {
-      toast.error(err.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -314,24 +404,52 @@ export default function CreateListingPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           <div>
             <label className="block text-sm font-semibold mb-2">Item Title *</label>
-            <input type="text" name="title" value={formData.title} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              className="w-full border rounded-2xl px-5 py-3.5 text-lg"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Price (R) *</label>
-              <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleInputChange}
+                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
+                required
+                min="0"
+                step="0.01"
+              />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Location *</label>
-              <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
+                required
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Category</label>
-              <select name="category" value={formData.category} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg">
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
+              >
                 <option>Electronics</option>
                 <option>Fashion & Clothing</option>
                 <option>Home & Garden</option>
@@ -341,7 +459,12 @@ export default function CreateListingPage() {
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Condition</label>
-              <select name="condition" value={formData.condition} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg">
+              <select
+                name="condition"
+                value={formData.condition}
+                onChange={handleInputChange}
+                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
+              >
                 <option>New</option>
                 <option>Like New</option>
                 <option>Good</option>
@@ -352,7 +475,13 @@ export default function CreateListingPage() {
 
           <div>
             <label className="block text-sm font-semibold mb-2">Description</label>
-            <textarea name="description" value={formData.description} onChange={handleInputChange} rows={5} className="w-full border rounded-3xl px-5 py-4" />
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              rows={5}
+              className="w-full border rounded-3xl px-5 py-4"
+            />
           </div>
 
           <div>
@@ -361,7 +490,15 @@ export default function CreateListingPage() {
             </label>
 
             <div className="border-2 border-dashed border-gray-300 rounded-3xl p-8 text-center hover:border-[#2E8B57] transition-colors">
-              <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" disabled={existingImages.length + newImages.length >= 5} />
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                id="images"
+                disabled={existingImages.length + newImages.length >= 5}
+              />
               <label htmlFor="images" className="cursor-pointer">
                 <div className="flex flex-col items-center">
                   <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -377,34 +514,60 @@ export default function CreateListingPage() {
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                 {existingImages.map((url, index) => (
                   <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <img src={url} alt={`Listing photo ${index + 1}`} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                      <button type="button" onClick={() => moveImage(index, 'left')} className="bg-white p-1.5 rounded-full"><ArrowLeft className="w-4 h-4" /></button>
-                      <button type="button" onClick={() => moveImage(index, 'right')} className="bg-white p-1.5 rounded-full"><ArrowRight className="w-4 h-4" /></button>
-                      <button type="button" onClick={() => removeExistingImage(index)} className="bg-white p-1.5 rounded-full text-red-600"><X className="w-4 h-4" /></button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(index, 'left')}
+                        className="bg-white p-1.5 rounded-full"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(index, 'right')}
+                        className="bg-white p-1.5 rounded-full"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeExistingImage(index)}
+                        className="bg-white p-1.5 rounded-full text-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
 
                 {newImages.map((file, index) => (
                   <div key={index} className="relative group aspect-square rounded-2xl overflow-hidden border">
-                    <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => removeNewImage(index)} className="absolute top-2 right-2 bg-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100"><X className="w-4 h-4 text-red-600" /></button>
+                    <img
+                      src={objectUrls[index]}
+                      alt={`New upload preview ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeNewImage(index)}
+                      className="absolute top-2 right-2 bg-white p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100"
+                    >
+                      <X className="w-4 h-4 text-red-600" />
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2">
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                {isEditing ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              isEditing ? 'Update Listing' : 'Create Listing'
-            )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg flex items-center justify-center gap-2"
+          >
+            {loading && <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>}
+            {loading ? (isEditing ? 'Updating...' : 'Creating...') : isEditing ? 'Update Listing' : 'Create Listing'}
           </button>
         </form>
       </div>
