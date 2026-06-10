@@ -16,45 +16,40 @@ export default function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
 
-  // Check auth + fetch profile info
+  // Fetch user + profile data
+  const fetchUserProfile = async (userId: string) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name, location')
+      .eq('id', userId)
+      .single();
+
+    if (profile) {
+      setUserName(profile.full_name || '');
+      setUserLocation(profile.location || '');
+    }
+  };
+
+  // Check auth state
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
         setUser(user);
-
-        // Fetch user profile for name + location
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, location')
-          .eq('id', user.id)
-          .single();
-
-        if (profile) {
-          setUserName(profile.full_name || '');
-          setUserLocation(profile.location || '');
-        }
+        await fetchUserProfile(user.id);
       }
       setLoading(false);
     };
 
     getUser();
 
+    // Listen for login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
           setUser(session.user);
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, location')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profile) {
-            setUserName(profile.full_name || '');
-            setUserLocation(profile.location || '');
-          }
+          await fetchUserProfile(session.user.id);
         } else {
           setUser(null);
           setUserName('');
@@ -66,7 +61,34 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Update counts
+  // ✅ Real-time profile updates (name & location)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('profile-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updatedProfile = payload.new as any;
+          if (updatedProfile.full_name) setUserName(updatedProfile.full_name);
+          if (updatedProfile.location) setUserLocation(updatedProfile.location);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Wishlist & Cart counts
   const updateCounts = () => {
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
     setWishlistCount(wishlist.length);
@@ -129,7 +151,7 @@ export default function Navbar() {
               </div>
             </form>
 
-            {/* Right Side */}
+            {/* Right Side Icons */}
             <div className="flex items-center gap-5">
               <Link href="/wishlist" className="relative hover:text-gray-300">
                 <Heart className="w-5 h-5" />
@@ -180,12 +202,12 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Secondary Navbar */}
+      {/* Secondary Navbar with Real-time Name + Location */}
       <div className="bg-gray-100 border-b">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-11 text-sm font-medium text-gray-700">
             
-            {/* Left Side Links */}
+            {/* Left Links */}
             <div className="flex items-center gap-6">
               <Link href="/listings" className="hover:text-[#2E8B57]">All Listings</Link>
               <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
@@ -193,7 +215,7 @@ export default function Navbar() {
               <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
             </div>
 
-            {/* ✅ Right Side: Client Name + Location */}
+            {/* ✅ Real-time Name + Location */}
             {!loading && user && (userName || userLocation) && (
               <div className="hidden md:flex items-center text-sm text-gray-600 font-medium">
                 {userName && <span>{userName}</span>}
