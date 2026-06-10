@@ -8,49 +8,76 @@ import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
   const [user, setUser] = useState<any>(null);
+  const [userName, setUserName] = useState('');
+  const [userLocation, setUserLocation] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [wishlistCount, setWishlistCount] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
 
-  // Check auth state
+  // Check auth + fetch profile info
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      
+      if (user) {
+        setUser(user);
+
+        // Fetch user profile for name + location
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, location')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setUserName(profile.full_name || '');
+          setUserLocation(profile.location || '');
+        }
+      }
       setLoading(false);
     };
 
     getUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user ?? null);
+      async (_event, session) => {
+        if (session?.user) {
+          setUser(session.user);
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, location')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile) {
+            setUserName(profile.full_name || '');
+            setUserLocation(profile.location || '');
+          }
+        } else {
+          setUser(null);
+          setUserName('');
+          setUserLocation('');
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load Wishlist & Cart counts from localStorage
+  // Update counts
   const updateCounts = () => {
-    // Wishlist count
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
     setWishlistCount(wishlist.length);
 
-    // Cart count
     const cart = JSON.parse(localStorage.getItem('cart') || '[]');
     setCartCount(cart.length);
   };
 
   useEffect(() => {
     updateCounts();
-
-    // Listen for changes in localStorage (from other tabs or components)
     window.addEventListener('storage', updateCounts);
-
-    // Custom event listener (for same-tab updates)
     window.addEventListener('wishlistUpdated', updateCounts);
     window.addEventListener('cartUpdated', updateCounts);
 
@@ -76,7 +103,7 @@ export default function Navbar() {
 
   return (
     <div>
-      {/* Top Navbar */}
+      {/* Top Dark Navbar */}
       <nav className="bg-[#1E3A5F] text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
@@ -96,19 +123,14 @@ export default function Navbar() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="flex-1 px-4 py-2 rounded-l-lg text-gray-900 focus:outline-none"
                 />
-                <button 
-                  type="submit"
-                  className="bg-[#2E8B57] px-4 rounded-r-lg hover:bg-[#246B46]"
-                >
+                <button type="submit" className="bg-[#2E8B57] px-4 rounded-r-lg hover:bg-[#246B46]">
                   🔍
                 </button>
               </div>
             </form>
 
-            {/* Right Side Icons & Buttons */}
+            {/* Right Side */}
             <div className="flex items-center gap-5">
-              
-              {/* Wishlist with Count */}
               <Link href="/wishlist" className="relative hover:text-gray-300">
                 <Heart className="w-5 h-5" />
                 {wishlistCount > 0 && (
@@ -118,7 +140,6 @@ export default function Navbar() {
                 )}
               </Link>
 
-              {/* Cart with Count */}
               <Link href="/cart" className="relative flex items-center gap-1 hover:text-gray-300">
                 <ShoppingCart className="w-5 h-5" />
                 {cartCount > 0 && (
@@ -132,7 +153,6 @@ export default function Navbar() {
               {!loading && (
                 <>
                   {user ? (
-                    // Logged In
                     <div className="flex items-center gap-4 text-sm">
                       <Link href="/seller/dashboard" className="hover:text-gray-300">
                         Seller Dashboard
@@ -142,15 +162,9 @@ export default function Navbar() {
                       </button>
                     </div>
                   ) : (
-                    // Logged Out
                     <div className="flex items-center gap-3 text-sm">
-                      <Link href="/login" className="hover:text-gray-300">
-                        Login
-                      </Link>
-                      <Link 
-                        href="/signup" 
-                        className="bg-white text-[#1E3A5F] px-4 py-1.5 rounded-lg font-medium hover:bg-gray-100"
-                      >
+                      <Link href="/login" className="hover:text-gray-300">Login</Link>
+                      <Link href="/signup" className="bg-white text-[#1E3A5F] px-4 py-1.5 rounded-lg font-medium hover:bg-gray-100">
                         Sign Up
                       </Link>
                     </div>
@@ -158,11 +172,7 @@ export default function Navbar() {
                 </>
               )}
 
-              {/* Sell Button */}
-              <Link 
-                href="/create-listing" 
-                className="bg-[#2E8B57] hover:bg-[#246B46] px-5 py-2 rounded-full text-sm font-semibold"
-              >
+              <Link href="/create-listing" className="bg-[#2E8B57] hover:bg-[#246B46] px-5 py-2 rounded-full text-sm font-semibold">
                 Sell an Item
               </Link>
             </div>
@@ -170,14 +180,27 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Secondary Nav */}
+      {/* Secondary Navbar */}
       <div className="bg-gray-100 border-b">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center gap-6 h-11 text-sm font-medium text-gray-700">
-            <Link href="/listings" className="hover:text-[#2E8B57]">All Listings</Link>
-            <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
-            <Link href="/how-it-works" className="hover:text-[#2E8B57]">How it Works</Link>
-            <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
+          <div className="flex items-center justify-between h-11 text-sm font-medium text-gray-700">
+            
+            {/* Left Side Links */}
+            <div className="flex items-center gap-6">
+              <Link href="/listings" className="hover:text-[#2E8B57]">All Listings</Link>
+              <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
+              <Link href="/how-it-works" className="hover:text-[#2E8B57]">How it Works</Link>
+              <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
+            </div>
+
+            {/* ✅ Right Side: Client Name + Location */}
+            {!loading && user && (userName || userLocation) && (
+              <div className="hidden md:flex items-center text-sm text-gray-600 font-medium">
+                {userName && <span>{userName}</span>}
+                {userName && userLocation && <span className="mx-1.5 text-gray-400">•</span>}
+                {userLocation && <span>{userLocation}</span>}
+              </div>
+            )}
           </div>
         </div>
       </div>
