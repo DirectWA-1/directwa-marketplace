@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -7,16 +6,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-y-10">
           
-          {/* Logo + About */}
+          {/* Logo + Description (Text-based) */}
           <div>
-            <Link href="/" className="flex items-center mb-4">
-              <Image 
-                src="/logo.png" 
-                alt="DirectWA" 
-                width={130} 
-                height={36} 
-                className="h-8 w-auto"
-              />
+            <Link href="/" className="text-2xl font-bold text-[#1E3A5F] mb-4 block">
+              Direct<span className="text-[#2E8B57]">WA</span>
             </Link>
             <p className="text-sm text-gray-600 max-w-xs">
               Buy and sell locally across South Africa. Simple. Safe. Direct.
