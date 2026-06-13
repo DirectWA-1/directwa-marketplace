@@ -67,19 +67,10 @@ export default function MyPurchasesPage() {
     setConfirmingId(orderId);
 
     try {
-      // Update order status
-      await supabase
-        .from('orders')
-        .update({ status: 'delivered' })
-        .eq('id', orderId);
+      await supabase.from('orders').update({ status: 'delivered' }).eq('id', orderId);
+      await supabase.from('escrow_transactions').update({ status: 'released' }).eq('id', escrow.id);
 
-      // Release escrow
-      await supabase
-        .from('escrow_transactions')
-        .update({ status: 'released' })
-        .eq('id', escrow.id);
-
-      toast.success('Delivery confirmed! Escrow has been released to the seller.');
+      toast.success('Delivery confirmed! Escrow released to seller.');
       fetchPurchases();
     } catch (error) {
       toast.error('Failed to confirm delivery');
@@ -88,7 +79,23 @@ export default function MyPurchasesPage() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading your purchases...</div>;
+  const getStatusBadge = (status: string) => {
+    const styles = {
+      paid: 'bg-blue-100 text-blue-700',
+      shipped: 'bg-amber-100 text-amber-700',
+      delivered: 'bg-green-100 text-green-700',
+      pending: 'bg-gray-100 text-gray-600',
+    };
+    return (
+      <span className={`px-3 py-1 text-xs rounded-full capitalize font-medium ${styles[status as keyof typeof styles] || 'bg-gray-100'}`}>
+        {status}
+      </span>
+    );
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading your purchases...</div>;
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -111,22 +118,14 @@ export default function MyPurchasesPage() {
               <div key={purchase.id} className="bg-white border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <p className="font-mono text-sm text-gray-500">Order #{purchase.id.slice(0, 8)}</p>
-                  <p className="text-xl font-semibold mt-1">R{purchase.total_amount?.toLocaleString()}</p>
+                  <p className="text-2xl font-bold mt-1">R{(purchase.total_amount || 0).toLocaleString()}</p>
                   <p className="text-sm text-gray-500 mt-1">
                     {new Date(purchase.created_at).toLocaleDateString()} • {purchase.payment_method}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <div>
-                    <span className={`px-3 py-1 text-sm rounded-full capitalize ${
-                      purchase.status === 'paid' ? 'bg-blue-100 text-blue-700' :
-                      purchase.status === 'shipped' ? 'bg-amber-100 text-amber-700' :
-                      purchase.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-gray-100'
-                    }`}>
-                      {purchase.status}
-                    </span>
-                  </div>
+                  {getStatusBadge(purchase.status)}
 
                   {canConfirm && (
                     <button
