@@ -17,13 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     const merchant_id = process.env.PAYFAST_MERCHANT_ID!;
-    const merchant_key = process.env.PAYFAST_MERCHANT_KEY!;
     const passphrase = process.env.PAYFAST_PASSPHRASE!;
 
-    // Create a pending payment reference
     const payment_reference = `PAY-${Date.now()}`;
 
-    // Store cart temporarily in Supabase (you can create a simple table for this)
+    // Store pending payment
     await supabase.from('pending_payments').insert({
       reference: payment_reference,
       cart_data: cart_items,
@@ -33,9 +31,9 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     });
 
+    // Build payment data (DO NOT include merchant_key)
     const paymentData: Record<string, string> = {
       merchant_id,
-      merchant_key,
       return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/payment/success`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout`,
       notify_url: `${process.env.NEXT_PUBLIC_SITE_URL}/api/payfast/itn`,
@@ -46,9 +44,11 @@ export async function POST(request: NextRequest) {
       custom_str1: payment_reference,
     };
 
+    // Generate signature
     const signature = generateSignature(paymentData, passphrase);
     paymentData.signature = signature;
 
+    // Build final query string
     const queryString = new URLSearchParams(paymentData).toString();
 
     return NextResponse.json({
@@ -61,17 +61,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ==================== IMPROVED SIGNATURE FUNCTION ====================
 function generateSignature(data: Record<string, string>, passphrase: string): string {
-  const { signature, ...rest } = data;
-  const sortedKeys = Object.keys(rest).sort();
-  let query = '';
+  // Remove signature if it exists
+  const { signature, ...params } = data;
 
-  sortedKeys.forEach(key => {
-    if (rest[key] !== '') query += `${key}=${encodeURIComponent(rest[key])}&`;
-  });
+  // Sort keys alphabetically
+  const sortedKeys = Object.keys(params).sort();
 
-  query = query.slice(0, -1);
-  if (passphrase) query += `&passphrase=${encodeURIComponent(passphrase)}`;
+  // Build signature string with proper encoding
+  let signatureString = sortedKeys
+    .map(key => {
+      const value = params[key];
+      if (value === null || value === undefined || value === '') return '';
+      // PayFast expects spaces as '+' not '%20'
+      return `${key}=${encodeURIComponent(String(value)).replace(/%20/g, '+')}`;
+    })
+    .filter(Boolean)
+    .join('&');
 
-  return crypto.createHash('md5').update(query).digest('hex');
+  // Append passphrase
+  if (passphrase) {
+    signatureString += `&passphrase=${encodeURIComponent(passphrase.trim())}`;
+  }
+
+  // Generate MD5 hash
+  return crypto.createHash('md5').update(signatureString).digest('hex');
 }

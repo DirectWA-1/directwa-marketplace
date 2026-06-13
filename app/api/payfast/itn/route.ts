@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -9,75 +10,69 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const data: any = {};
-    formData.forEach((value, key) => (data[key] = value));
+    const data: Record<string, string> = {};
 
-    if (data.payment_status !== 'COMPLETE') {
-      return NextResponse.json({ success: true });
-    }
-
-    const reference = data.custom_str1;
-
-    // Get the pending payment data
-    const { data: pending } = await supabase
-      .from('pending_payments')
-      .select('*')
-      .eq('reference', reference)
-      .single();
-
-    if (!pending) {
-      console.error('Pending payment not found');
-      return NextResponse.json({ success: false });
-    }
-
-    const cartItems = pending.cart_data;
-
-    // Group by seller
-    const bySeller: any = {};
-    cartItems.forEach((item: any) => {
-      const sid = item.seller_id || 'unknown';
-      if (!bySeller[sid]) bySeller[sid] = [];
-      bySeller[sid].push(item);
+    formData.forEach((value, key) => {
+      data[key] = value.toString();
     });
 
-    // Create order + escrow per seller
-    for (const sellerId of Object.keys(bySeller)) {
-      const items = bySeller[sellerId];
-      const sellerTotal = items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+    const receivedSignature = data.signature;
+    const passphrase = process.env.PAYFAST_PASSPHRASE!;
 
-      // Create Order
-      const { data: order } = await supabase
-        .from('orders')
-        .insert({
-          buyer_id: 'guest-user',
-          seller_id: sellerId,
-          listing_id: items[0].id,
-          amount: sellerTotal,
-          status: 'paid',
-          delivery_method: 'delivery',
-        })
-        .select()
-        .single();
+    // Remove signature before generating our own
+    const { signature, ...paramsForSignature } = data;
 
-      if (order) {
-        // Create Escrow
-        await supabase.from('escrow_transactions').insert({
-          order_id: order.id,
-          amount: sellerTotal,
-          status: 'held',
-        });
-      }
+    // Verify signature
+    const calculatedSignature = generateSignature(paramsForSignature, passphrase);
+
+    if (calculatedSignature !== receivedSignature) {
+      console.error('Invalid PayFast signature');
+      return new NextResponse('Invalid signature', { status: 400 });
     }
 
-    // Mark pending payment as completed
-    await supabase
-      .from('pending_payments')
-      .update({ status: 'completed' })
-      .eq('reference', reference);
+    // Payment was successful
+    if (data.payment_status === 'COMPLETE') {
+      const paymentReference = data.custom_str1;
+      const amount = parseFloat(data.amount_gross || '0');
 
-    return NextResponse.json({ success: true });
+      // Update pending payment record
+      await supabase
+        .from('pending_payments')
+        .update({
+          status: 'completed',
+          payfast_payment_id: data.pf_payment_id,
+        })
+        .eq('reference', paymentReference);
+
+      // TODO: Create actual order(s) here if needed
+      // You can expand this to create records in your orders + escrow tables
+
+      console.log(`Payment successful for reference: ${paymentReference}`);
+    }
+
+    // Always respond with "OK" to PayFast
+    return new NextResponse('OK', { status: 200 });
   } catch (error) {
-    console.error('ITN Error:', error);
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error('PayFast ITN error:', error);
+    return new NextResponse('Error', { status: 500 });
   }
+}
+
+function generateSignature(data: Record<string, string>, passphrase: string): string {
+  const sortedKeys = Object.keys(data).sort();
+
+  let signatureString = sortedKeys
+    .map(key => {
+      const value = data[key];
+      if (value === null || value === undefined || value === '') return '';
+      return `${key}=${encodeURIComponent(String(value)).replace(/%20/g, '+')}`;
+    })
+    .filter(Boolean)
+    .join('&');
+
+  if (passphrase) {
+    signatureString += `&passphrase=${encodeURIComponent(passphrase.trim())}`;
+  }
+
+  return crypto.createHash('md5').update(signatureString).digest('hex');
 }
