@@ -44,7 +44,6 @@ export default function Navbar() {
 
     getUser();
 
-    // Listen for login/logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         if (session?.user) {
@@ -61,7 +60,7 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ✅ Real-time profile updates (name & location)
+  // Real-time profile updates
   useEffect(() => {
     if (!user) return;
 
@@ -202,7 +201,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Secondary Navbar with Real-time Name + Location */}
+      {/* Secondary Navbar */}
       <div className="bg-gray-100 border-b">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-11 text-sm font-medium text-gray-700">
@@ -213,9 +212,16 @@ export default function Navbar() {
               <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
               <Link href="/how-it-works" className="hover:text-[#2E8B57]">How it Works</Link>
               <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
+
+              {/* ✅ My Purchases - Added here */}
+              {user && (
+                <Link href="/my-purchases" className="hover:text-[#2E8B57] font-semibold">
+                  My Purchases
+                </Link>
+              )}
             </div>
 
-            {/* ✅ Real-time Name + Location */}
+            {/* Real-time Name + Location */}
             {!loading && user && (userName || userLocation) && (
               <div className="hidden md:flex items-center text-sm text-gray-600 font-medium">
                 {userName && <span>{userName}</span>}
