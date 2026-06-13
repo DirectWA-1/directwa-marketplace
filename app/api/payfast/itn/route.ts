@@ -19,23 +19,21 @@ export async function POST(request: NextRequest) {
     const receivedSignature = data.signature;
     const passphrase = process.env.PAYFAST_PASSPHRASE!;
 
-    // Remove signature before verification
-    const { signature, ...paramsForSignature } = data;
-    const calculatedSignature = generateSignature(paramsForSignature, passphrase);
+    // Verify signature (exclude merchant_key and signature)
+    const calculatedSignature = generateSignature(data, passphrase);
 
     if (calculatedSignature !== receivedSignature) {
       console.error('Invalid PayFast signature');
       return new NextResponse('Invalid signature', { status: 400 });
     }
 
-    // Only process successful payments
+    // Process successful payment
     if (data.payment_status === 'COMPLETE') {
-      const paymentReference = data.custom_str1; // e.g. PAY-1234567890
+      const paymentReference = data.custom_str1;
       const amount = parseFloat(data.amount_gross || '0');
-      const buyerEmail = data.email_address;
       const pfPaymentId = data.pf_payment_id;
 
-      // 1. Update pending_payments status
+      // Update pending payment
       await supabase
         .from('pending_payments')
         .update({
@@ -44,8 +42,7 @@ export async function POST(request: NextRequest) {
         })
         .eq('reference', paymentReference);
 
-      // 2. Create Order + Escrow record
-      // You can expand this logic based on your cart structure
+      // Create Order + Escrow record
       const { data: pendingPayment } = await supabase
         .from('pending_payments')
         .select('*')
@@ -53,11 +50,10 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (pendingPayment) {
-        // Create main order
         const { data: newOrder } = await supabase
           .from('orders')
           .insert({
-            buyer_id: pendingPayment.buyer_id || null, // You may need to store this earlier
+            buyer_id: pendingPayment.user_id,
             total_amount: amount,
             payment_method: 'payfast',
             payment_reference: paymentReference,
@@ -68,18 +64,17 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (newOrder) {
-          // Create escrow transaction
           await supabase.from('escrow_transactions').insert({
             order_id: newOrder.id,
             amount: amount,
-            status: 'held',           // Money is held in escrow
+            status: 'held',
             payment_reference: paymentReference,
             payfast_payment_id: pfPaymentId,
           });
         }
       }
 
-      console.log(`✅ Payment successful. Order + Escrow created for: ${paymentReference}`);
+      console.log(`✅ Payment completed for reference: ${paymentReference}`);
     }
 
     return new NextResponse('OK', { status: 200 });
@@ -89,12 +84,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ==================== SIGNATURE VERIFICATION (Consistent with Initiate) ====================
 function generateSignature(data: Record<string, string>, passphrase: string): string {
-  const sortedKeys = Object.keys(data).sort();
+  // Exclude signature and merchant_key when verifying
+  const { signature, merchant_key, ...params } = data;
+
+  const sortedKeys = Object.keys(params).sort();
 
   let signatureString = sortedKeys
     .map(key => {
-      const value = data[key];
+      const value = params[key];
       if (!value) return '';
       return `${key}=${encodeURIComponent(String(value)).replace(/%20/g, '+')}`;
     })
