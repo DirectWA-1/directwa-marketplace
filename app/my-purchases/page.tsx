@@ -70,7 +70,7 @@ export default function MyPurchasesPage() {
       await supabase.from('orders').update({ status: 'delivered' }).eq('id', orderId);
       await supabase.from('escrow_transactions').update({ status: 'released' }).eq('id', escrow.id);
 
-      toast.success('Delivery confirmed! Escrow released to seller.');
+      toast.success('Delivery confirmed! Escrow has been released to the seller.');
       fetchPurchases();
     } catch (error) {
       toast.error('Failed to confirm delivery');
@@ -80,17 +80,11 @@ export default function MyPurchasesPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
-      paid: 'bg-blue-100 text-blue-700',
-      shipped: 'bg-amber-100 text-amber-700',
-      delivered: 'bg-green-100 text-green-700',
-      pending: 'bg-gray-100 text-gray-600',
-    };
-    return (
-      <span className={`px-3 py-1 text-xs rounded-full capitalize font-medium ${styles[status as keyof typeof styles] || 'bg-gray-100'}`}>
-        {status}
-      </span>
-    );
+    const base = "px-3 py-1 text-xs rounded-full font-medium capitalize";
+    if (status === 'paid') return <span className={`${base} bg-blue-100 text-blue-700`}>Paid</span>;
+    if (status === 'shipped') return <span className={`${base} bg-amber-100 text-amber-700`}>Shipped</span>;
+    if (status === 'delivered') return <span className={`${base} bg-green-100 text-green-700`}>Delivered</span>;
+    return <span className={`${base} bg-gray-100 text-gray-600`}>{status}</span>;
   };
 
   if (loading) {
@@ -115,30 +109,39 @@ export default function MyPurchasesPage() {
             const canConfirm = purchase.status === 'shipped' && escrow?.status === 'held';
 
             return (
-              <div key={purchase.id} className="bg-white border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div 
+                key={purchase.id} 
+                className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+              >
+                {/* Left Side - Order Info */}
                 <div>
                   <p className="font-mono text-sm text-gray-500">Order #{purchase.id.slice(0, 8)}</p>
-                  <p className="text-2xl font-bold mt-1">R{(purchase.total_amount || 0).toLocaleString()}</p>
+                  <p className="text-3xl font-bold mt-1 tracking-tight">
+                    R{(purchase.total_amount || 0).toLocaleString()}
+                  </p>
                   <p className="text-sm text-gray-500 mt-1">
-                    {new Date(purchase.created_at).toLocaleDateString()} • {purchase.payment_method}
+                    {new Date(purchase.created_at).toLocaleDateString()} • {purchase.payment_method || 'PayFast'}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-4">
+                {/* Right Side - Status & Actions */}
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
                   {getStatusBadge(purchase.status)}
 
                   {canConfirm && (
                     <button
                       onClick={() => confirmDelivery(purchase.id)}
                       disabled={confirmingId === purchase.id}
-                      className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2 rounded-xl text-sm font-medium disabled:bg-gray-400"
+                      className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl text-sm font-semibold disabled:bg-gray-400 transition"
                     >
                       {confirmingId === purchase.id ? 'Confirming...' : 'Confirm Delivery'}
                     </button>
                   )}
 
                   {escrow?.status === 'released' && (
-                    <span className="text-green-600 text-sm font-medium">Escrow Released ✓</span>
+                    <div className="text-green-600 text-sm font-medium flex items-center gap-1">
+                      ✓ Escrow Released
+                    </div>
                   )}
                 </div>
               </div>
