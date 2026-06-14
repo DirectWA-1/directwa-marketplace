@@ -16,7 +16,7 @@ export default function Navbar() {
   const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
 
-  // Fetch user + profile data
+  // Fetch user profile
   const fetchUserProfile = async (userId: string) => {
     const { data: profile } = await supabase
       .from('profiles')
@@ -30,7 +30,6 @@ export default function Navbar() {
     }
   };
 
-  // Check auth state
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -82,9 +81,7 @@ export default function Navbar() {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, [user]);
 
   // Wishlist & Cart counts
@@ -128,11 +125,7 @@ export default function Navbar() {
       <nav className="bg-[#1E3A5F] text-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            
-            {/* Logo */}
-            <Link href="/" className="text-2xl font-bold">
-              DirectWA
-            </Link>
+            <Link href="/" className="text-2xl font-bold">DirectWA</Link>
 
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-6">
@@ -150,47 +143,28 @@ export default function Navbar() {
               </div>
             </form>
 
-            {/* Right Side Icons */}
+            {/* Right Side */}
             <div className="flex items-center gap-5">
               <Link href="/wishlist" className="relative hover:text-gray-300">
                 <Heart className="w-5 h-5" />
-                {wishlistCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                    {wishlistCount}
-                  </span>
-                )}
+                {wishlistCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{wishlistCount}</span>}
               </Link>
 
               <Link href="/cart" className="relative flex items-center gap-1 hover:text-gray-300">
                 <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                    {cartCount}
-                  </span>
-                )}
-                <span className="hidden lg:inline">Cart</span>
+                {cartCount > 0 && <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cartCount}</span>}
               </Link>
 
-              {!loading && (
-                <>
-                  {user ? (
-                    <div className="flex items-center gap-4 text-sm">
-                      <Link href="/seller/dashboard" className="hover:text-gray-300">
-                        Seller Dashboard
-                      </Link>
-                      <button onClick={handleLogout} className="hover:text-gray-300">
-                        Logout
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Link href="/login" className="hover:text-gray-300">Login</Link>
-                      <Link href="/signup" className="bg-white text-[#1E3A5F] px-4 py-1.5 rounded-lg font-medium hover:bg-gray-100">
-                        Sign Up
-                      </Link>
-                    </div>
-                  )}
-                </>
+              {!loading && user ? (
+                <div className="flex items-center gap-4 text-sm">
+                  <Link href="/seller/dashboard" className="hover:text-gray-300">Seller Dashboard</Link>
+                  <button onClick={handleLogout} className="hover:text-gray-300">Logout</button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 text-sm">
+                  <Link href="/login" className="hover:text-gray-300">Login</Link>
+                  <Link href="/signup" className="bg-white text-[#1E3A5F] px-4 py-1.5 rounded-lg font-medium hover:bg-gray-100">Sign Up</Link>
+                </div>
               )}
 
               <Link href="/create-listing" className="bg-[#2E8B57] hover:bg-[#246B46] px-5 py-2 rounded-full text-sm font-semibold">
@@ -201,27 +175,19 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Secondary Navbar */}
+      {/* Secondary Navbar with Pricing Link */}
       <div className="bg-gray-100 border-b">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-11 text-sm font-medium text-gray-700">
-            
-            {/* Left Links */}
             <div className="flex items-center gap-6">
               <Link href="/listings" className="hover:text-[#2E8B57]">All Listings</Link>
               <Link href="/create-listing" className="hover:text-[#2E8B57]">Sell</Link>
               <Link href="/how-it-works" className="hover:text-[#2E8B57]">How it Works</Link>
-              <Link href="/escrow-protection" className="hover:text-[#2E8B57]">Escrow</Link>
-
-              {/* ✅ My Purchases - Added here */}
-              {user && (
-                <Link href="/my-purchases" className="hover:text-[#2E8B57] font-semibold">
-                  My Purchases
-                </Link>
-              )}
+              <Link href="/escrow" className="hover:text-[#2E8B57]">Escrow</Link>
+              <Link href="/pricing" className="hover:text-[#2E8B57] font-semibold">Pricing</Link>
             </div>
 
-            {/* Real-time Name + Location */}
+            {/* User Info */}
             {!loading && user && (userName || userLocation) && (
               <div className="hidden md:flex items-center text-sm text-gray-600 font-medium">
                 {userName && <span>{userName}</span>}
