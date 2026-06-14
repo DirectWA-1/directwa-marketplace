@@ -230,6 +230,9 @@ export default function Navbar() {
 
               {!loading && user ? (
                 <div className="flex items-center gap-4 text-sm">
+                  <Link href="/my-purchases" className="hover:text-gray-300">
+                    My Purchases
+                  </Link>
                   <Link href="/seller/dashboard" className="hover:text-gray-300">
                     Seller Dashboard
                   </Link>
