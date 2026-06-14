@@ -79,12 +79,22 @@ export default function MyPurchasesPage() {
     }
   };
 
+  // Improved Status Badge
   const getStatusBadge = (status: string) => {
-    const base = "px-3 py-1 text-xs rounded-full font-medium capitalize";
-    if (status === 'paid') return <span className={`${base} bg-blue-100 text-blue-700`}>Paid</span>;
-    if (status === 'shipped') return <span className={`${base} bg-amber-100 text-amber-700`}>Shipped</span>;
-    if (status === 'delivered') return <span className={`${base} bg-green-100 text-green-700`}>Delivered</span>;
-    return <span className={`${base} bg-gray-100 text-gray-600`}>{status}</span>;
+    const baseClasses = "px-3 py-1 text-xs rounded-full font-semibold capitalize";
+
+    switch (status) {
+      case 'paid':
+        return <span className={`${baseClasses} bg-blue-100 text-blue-700`}>Paid</span>;
+      case 'shipped':
+        return <span className={`${baseClasses} bg-amber-100 text-amber-700`}>Shipped</span>;
+      case 'delivered':
+        return <span className={`${baseClasses} bg-green-100 text-green-700`}>Delivered</span>;
+      case 'pending':
+        return <span className={`${baseClasses} bg-gray-200 text-gray-700`}>Pending Payment</span>;
+      default:
+        return <span className={`${baseClasses} bg-gray-100 text-gray-600`}>{status}</span>;
+    }
   };
 
   if (loading) {
@@ -111,9 +121,9 @@ export default function MyPurchasesPage() {
             return (
               <div 
                 key={purchase.id} 
-                className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col md:flex-row md:items-center md:justify-between gap-6"
+                className="bg-white border rounded-2xl p-6 shadow-sm hover:shadow transition flex flex-col md:flex-row md:items-center md:justify-between gap-6"
               >
-                {/* Left Side - Order Info */}
+                {/* Order Info */}
                 <div>
                   <p className="font-mono text-sm text-gray-500">Order #{purchase.id.slice(0, 8)}</p>
                   <p className="text-3xl font-bold mt-1 tracking-tight">
@@ -124,7 +134,7 @@ export default function MyPurchasesPage() {
                   </p>
                 </div>
 
-                {/* Right Side - Status & Actions */}
+                {/* Status & Action */}
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                   {getStatusBadge(purchase.status)}
 
