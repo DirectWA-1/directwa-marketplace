@@ -37,7 +37,6 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [user, setUser] = useState<any>(null);
-  const [showReportModal, setShowReportModal] = useState(false);
 
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -45,13 +44,16 @@ export default function ListingDetail() {
 
   useEffect(() => {
     if (id) {
-      fetchData();
-      getCurrentUser();
+      void fetchData();
+      void getCurrentUser();
     }
   }, [id]);
 
   const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     setUser(user);
   };
 
@@ -64,7 +66,9 @@ export default function ListingDetail() {
       .eq('id', id)
       .single();
 
-    if (listingData) setListing(listingData);
+    if (listingData) {
+      setListing(listingData);
+    }
 
     const { data: reviewData } = await supabase
       .from('reviews')
@@ -74,15 +78,19 @@ export default function ListingDetail() {
 
     if (reviewData) {
       setReviews(reviewData);
+
       if (reviewData.length > 0) {
-        const avg = reviewData.reduce((sum, r) => sum + r.rating, 0) / reviewData.length;
+        const avg =
+          reviewData.reduce((sum, r) => sum + r.rating, 0) / reviewData.length;
         setAverageRating(Math.round(avg * 10) / 10);
+      } else {
+        setAverageRating(0);
       }
     }
+
     setLoading(false);
   };
 
-  // ✅ Updated addToCart with correct event dispatch
   const addToCart = () => {
     if (!listing) return;
 
@@ -103,21 +111,22 @@ export default function ListingDetail() {
     });
 
     localStorage.setItem('cart', JSON.stringify(cart));
-
-    // Dispatch event so Navbar updates instantly
     window.dispatchEvent(new Event('cartUpdated'));
 
     toast.success('Added to cart!', {
       description: listing.title,
       action: {
         label: 'View Cart',
-        onClick: () => window.location.href = '/cart',
+        onClick: () => {
+          window.location.href = '/cart';
+        },
       },
     });
   };
 
-  const submitReview = async (e: React.FormEvent) => {
+  const submitReview = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     if (!user || !listing) return;
 
     setSubmitting(true);
@@ -136,8 +145,9 @@ export default function ListingDetail() {
       toast.success('Thank you! Your review was submitted.');
       setComment('');
       setRating(5);
-      fetchData();
+      void fetchData();
     }
+
     setSubmitting(false);
   };
 
@@ -150,10 +160,14 @@ export default function ListingDetail() {
             <div className="w-full aspect-[4/3] bg-gray-200 rounded-2xl animate-pulse" />
             <div className="flex gap-3 mt-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="w-20 h-20 bg-gray-200 rounded-xl animate-pulse" />
+                <div
+                  key={i}
+                  className="w-20 h-20 bg-gray-200 rounded-xl animate-pulse"
+                />
               ))}
             </div>
           </div>
+
           <div className="space-y-4">
             <div className="flex gap-2">
               <div className="h-7 w-24 bg-gray-200 rounded-full animate-pulse" />
@@ -171,23 +185,32 @@ export default function ListingDetail() {
     );
   }
 
-  if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
+  if (!listing) {
+    return <div className="p-8 text-center">Listing not found.</div>;
+  }
 
-  const images = listing.images?.length > 0 
-    ? listing.images 
-    : ['https://picsum.photos/id/20/800/600'];
+  const images =
+    listing.images?.length > 0
+      ? listing.images
+      : ['[picsum.photos](https://picsum.photos/id/20/800/600)'];
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <Link href="/listings" className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block">
+      <Link
+        href="/listings"
+        className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block"
+      >
         ← Back to all listings
       </Link>
 
       <div className="grid md:grid-cols-2 gap-10">
-        {/* Image Gallery */}
         <div>
           <div className="border rounded-2xl overflow-hidden mb-4 aspect-[4/3]">
-            <img src={images[selectedImage]} alt={listing.title} className="w-full h-full object-cover" />
+            <img
+              src={images[selectedImage]}
+              alt={listing.title}
+              className="w-full h-full object-cover"
+            />
           </div>
 
           {images.length > 1 && (
@@ -196,7 +219,11 @@ export default function ListingDetail() {
                 <button
                   key={index}
                   onClick={() => setSelectedImage(index)}
-                  className={`flex-shrink-0 w-20 h-20 border-2 rounded-xl overflow-hidden ${selectedImage === index ? 'border-[#2E8B57]' : 'border-gray-200'}`}
+                  className={`flex-shrink-0 w-20 h-20 border-2 rounded-xl overflow-hidden ${
+                    selectedImage === index
+                      ? 'border-[#2E8B57]'
+                      : 'border-gray-200'
+                  }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
@@ -205,81 +232,119 @@ export default function ListingDetail() {
           )}
         </div>
 
-        {/* Product Info */}
         <div>
           <div className="flex items-center gap-3 mb-3 flex-wrap">
-            {listing.category && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.category}</span>}
-            {listing.condition && <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">{listing.condition}</span>}
+            {listing.category && (
+              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
+                {listing.category}
+              </span>
+            )}
+
+            {listing.condition && (
+              <span className="bg-gray-100 text-gray-700 text-sm px-3 py-1 rounded-full">
+                {listing.condition}
+              </span>
+            )}
+
             <WishlistButton listingId={listing.id} />
           </div>
 
-          <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">{listing.title}</h1>
+          <h1 className="text-3xl font-bold text-[#1E3A5F] mb-2">
+            {listing.title}
+          </h1>
 
           {averageRating > 0 && (
             <div className="flex items-center gap-2 mb-4">
-              <div className="text-yellow-500 text-xl">{'★'.repeat(Math.round(averageRating))}</div>
+              <div className="text-yellow-500 text-xl">
+                {'★'.repeat(Math.round(averageRating))}
+              </div>
               <span className="text-lg font-semibold">{averageRating}</span>
               <span className="text-gray-500">({reviews.length} reviews)</span>
             </div>
           )}
 
-          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">R{listing.price.toLocaleString()}</div>
+          <div className="text-4xl font-bold text-[#1E3A5F] mb-6">
+            R{listing.price.toLocaleString()}
+          </div>
+
           <div className="mb-4 text-sm text-gray-600">📍 {listing.location}</div>
 
-          {/* Seller Link */}
           <div className="mb-8">
             <p className="text-sm text-gray-500 mb-1.5">Sold by</p>
-            <Link 
-              href={`/seller/${listing.user_id}`} 
+            <Link
+              href={`/seller/${listing.user_id}`}
               className="inline-flex items-center gap-2 group"
             >
               <span className="text-[#2E8B57] group-hover:underline font-semibold text-lg">
                 View Seller Profile
               </span>
-              <span className="text-[#2E8B57] group-hover:translate-x-0.5 transition-transform">→</span>
+              <span className="text-[#2E8B57] group-hover:translate-x-0.5 transition-transform">
+                →
+              </span>
             </Link>
           </div>
 
-          {/* Description */}
           <div className="mb-8">
             <h3 className="font-semibold mb-2">Description</h3>
             <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-              {listing.description || "No description provided."}
+              {listing.description || 'No description provided.'}
             </p>
           </div>
 
-          {/* Action Buttons */}
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm text-amber-800">
+              Safety tip: Never pay outside DirectWA escrow. Be careful with
+              unusually low prices, rushed sales, or sellers asking you to move
+              too quickly off-platform.
+            </p>
+          </div>
+
           <div className="space-y-3">
-            <button 
-              onClick={addToCart} 
+            <button
+              onClick={addToCart}
               className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white font-semibold py-4 rounded-2xl text-lg"
             >
               Add to Cart
             </button>
+
             <button className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-4 rounded-2xl text-lg">
               Chat with Seller on WhatsApp
             </button>
+
+            <div className="pt-1">
+              <ReportModal
+                listingId={listing.id}
+                reportedUserId={listing.user_id}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Reviews Section */}
       <div className="mt-14">
         <h2 className="text-2xl font-bold text-[#1E3A5F] mb-6">Reviews</h2>
 
         {user && (
           <div className="bg-white border rounded-2xl p-6 mb-8">
             <h3 className="font-semibold mb-4">Leave a Review</h3>
+
             <form onSubmit={submitReview} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium mb-2">Your Rating</label>
+                <label className="block text-sm font-medium mb-2">
+                  Your Rating
+                </label>
+
                 <div className="flex gap-1">
-                  {[1,2,3,4,5].map((star) => (
+                  {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
                       onClick={() => setRating(star)}
-                      className={`text-3xl transition-colors ${star <= rating ? 'text-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`}
+                      className={`text-3xl transition-colors ${
+                        star <= rating
+                          ? 'text-yellow-500'
+                          : 'text-gray-300 hover:text-yellow-400'
+                      }`}
                     >
                       ★
                     </button>
@@ -288,7 +353,9 @@ export default function ListingDetail() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Comment (optional)</label>
+                <label className="block text-sm font-medium mb-1">
+                  Comment (optional)
+                </label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
@@ -298,9 +365,9 @@ export default function ListingDetail() {
                 />
               </div>
 
-              <button 
-                type="submit" 
-                disabled={submitting} 
+              <button
+                type="submit"
+                disabled={submitting}
                 className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-6 py-2.5 rounded-xl font-semibold disabled:opacity-70"
               >
                 {submitting ? 'Submitting...' : 'Submit Review'}
@@ -314,10 +381,17 @@ export default function ListingDetail() {
             {reviews.map((review) => (
               <div key={review.id} className="bg-white border rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="text-yellow-500">{'★'.repeat(review.rating)}</div>
-                  <span className="text-sm text-gray-500">{new Date(review.created_at).toLocaleDateString()}</span>
+                  <div className="text-yellow-500">
+                    {'★'.repeat(review.rating)}
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </span>
                 </div>
-                {review.comment && <p className="text-gray-700">{review.comment}</p>}
+
+                {review.comment && (
+                  <p className="text-gray-700">{review.comment}</p>
+                )}
               </div>
             ))}
           </div>
@@ -325,15 +399,6 @@ export default function ListingDetail() {
           <p className="text-gray-500">No reviews yet.</p>
         )}
       </div>
-
-      {/* Report Modal */}
-      {showReportModal && listing && (
-        <ReportModal
-          targetType="listing"
-          targetId={listing.id}
-          onClose={() => setShowReportModal(false)}
-        />
-      )}
     </div>
   );
 }
