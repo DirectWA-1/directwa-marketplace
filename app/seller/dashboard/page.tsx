@@ -6,7 +6,6 @@ import { supabase } from '@/lib/supabase';
 import { Upload, Edit, Trash2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
-// ==================== INTERFACES ====================
 interface Listing {
   id: string;
   title: string;
@@ -23,6 +22,7 @@ interface Order {
   status: string;
   created_at: string;
   buyer_id: string;
+  payment_method: string;
 }
 
 interface Escrow {
@@ -133,15 +133,9 @@ export default function SellerDashboard() {
   // ==================== LISTING ACTIONS ====================
   const markAsSold = async (listingId: string) => {
     setUpdatingListingId(listingId);
-    const { error } = await supabase
-      .from('listings')
-      .update({ status: 'sold' })
-      .eq('id', listingId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      toast.error('Failed to mark as sold');
-    } else {
+    const { error } = await supabase.from('listings').update({ status: 'sold' }).eq('id', listingId).eq('user_id', user.id);
+    if (error) toast.error('Failed to mark as sold');
+    else {
       toast.success('Listing marked as sold!');
       fetchData();
     }
@@ -150,17 +144,10 @@ export default function SellerDashboard() {
 
   const deleteListing = async (listingId: string) => {
     if (!confirm('Are you sure you want to delete this listing?')) return;
-
     setUpdatingListingId(listingId);
-    const { error } = await supabase
-      .from('listings')
-      .delete()
-      .eq('id', listingId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      toast.error('Failed to delete listing');
-    } else {
+    const { error } = await supabase.from('listings').delete().eq('id', listingId).eq('user_id', user.id);
+    if (error) toast.error('Failed to delete listing');
+    else {
       toast.success('Listing deleted');
       fetchData();
     }
@@ -182,7 +169,6 @@ export default function SellerDashboard() {
   const requestEscrowRelease = async (orderId: string) => {
     const escrow = escrowMap[orderId];
     if (!escrow) return;
-
     setUpdatingOrderId(orderId);
     const { error } = await supabase.from('escrow_transactions').update({ status: 'release_requested' }).eq('id', escrow.id);
     if (error) toast.error('Failed to request release');
@@ -255,7 +241,20 @@ export default function SellerDashboard() {
             <p className="text-gray-600">Here's how your store is performing.</p>
           </div>
         </div>
-        <Link href="/seller/edit-profile" className="border px-4 py-2 rounded-xl text-sm">Edit Profile</Link>
+
+        <div className="flex items-center gap-3">
+          {/* View All Orders Button */}
+          <Link 
+            href="/seller/orders" 
+            className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+          >
+            View All Orders
+          </Link>
+
+          <Link href="/seller/edit-profile" className="border px-4 py-2 rounded-xl text-sm hover:bg-gray-50">
+            Edit Profile
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
@@ -282,56 +281,64 @@ export default function SellerDashboard() {
 
       {/* Received Orders */}
       <div className="mb-10">
-        <h2 className="text-2xl font-semibold mb-4">Received Orders ({receivedOrders.length})</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-[#1E3A5F]">Received Orders ({receivedOrders.length})</h2>
+          <Link href="/seller/orders" className="text-[#2E8B57] hover:underline text-sm">View All →</Link>
+        </div>
+
         {receivedOrders.length === 0 ? (
-          <div className="bg-white border rounded-2xl p-8 text-center">No orders yet.</div>
+          <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">
+            You haven't received any orders yet.
+          </div>
         ) : (
-          <div className="bg-white border rounded-2xl overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-              <thead className="bg-gray-50 text-sm">
-                <tr>
-                  <th className="p-4 text-left">Order</th>
-                  <th className="p-4 text-left">Amount</th>
-                  <th className="p-4 text-left">Status</th>
-                  <th className="p-4 text-left">Escrow</th>
-                  <th className="p-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receivedOrders.map(order => {
-                  const escrow = escrowMap[order.id];
-                  return (
-                    <tr key={order.id} className="border-t">
-                      <td className="p-4 font-mono text-sm">{order.id.slice(0,8)}...</td>
-                      <td className="p-4 font-semibold">R{(order.total_amount || 0).toLocaleString()}</td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1 text-xs rounded-full capitalize ${order.status === 'paid' ? 'bg-blue-100 text-blue-700' : order.status === 'shipped' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm capitalize">{escrow?.status?.replace('_', ' ') || '—'}</td>
-                      <td className="p-4 text-right">
-                        {order.status === 'paid' && (
-                          <button onClick={() => markAsShipped(order.id)} disabled={updatingOrderId === order.id} className="bg-[#2E8B57] text-white px-4 py-2 rounded-xl text-sm">
-                            Mark as Shipped
-                          </button>
-                        )}
-                        {order.status === 'shipped' && escrow?.status === 'held' && (
-                          <button onClick={() => requestEscrowRelease(order.id)} disabled={updatingOrderId === order.id} className="bg-purple-600 text-white px-4 py-2 rounded-xl text-sm">
-                            Request Release
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {receivedOrders.slice(0, 8).map((order) => {
+              const escrow = escrowMap[order.id];
+              const canShip = order.status === 'paid';
+              const canRequestRelease = order.status === 'shipped' && escrow?.status === 'held';
+
+              return (
+                <div key={order.id} className="bg-white border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-sm text-gray-500">Order #{order.id.slice(0, 8)}</p>
+                    <p className="text-2xl font-bold mt-1">R{(order.total_amount || 0).toLocaleString()}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {new Date(order.created_at).toLocaleDateString()} • {order.payment_method || 'PayFast'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span className={`px-3 py-1 text-sm rounded-full capitalize font-medium ${
+                      order.status === 'paid' ? 'bg-blue-100 text-blue-700' :
+                      order.status === 'shipped' ? 'bg-amber-100 text-amber-700' :
+                      order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {order.status}
+                    </span>
+
+                    {canShip && (
+                      <button onClick={() => markAsShipped(order.id)} disabled={updatingOrderId === order.id} className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-5 py-2 rounded-xl text-sm font-medium disabled:bg-gray-400">
+                        Mark as Shipped
+                      </button>
+                    )}
+
+                    {canRequestRelease && (
+                      <button onClick={() => requestEscrowRelease(order.id)} disabled={updatingOrderId === order.id} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-medium disabled:bg-gray-400">
+                        Request Escrow Release
+                      </button>
+                    )}
+
+                    {escrow?.status === 'release_requested' && <span className="text-purple-600 text-sm font-medium">Release Requested</span>}
+                    {escrow?.status === 'released' && <span className="text-green-600 text-sm font-medium">Escrow Released ✓</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* ==================== ACTIVE LISTINGS WITH ACTIONS ==================== */}
+      {/* Active Listings */}
       <div className="mb-10">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Active Listings ({activeListings.length})</h2>
@@ -352,26 +359,14 @@ export default function SellerDashboard() {
                     <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
                     <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
 
-                    {/* Action Buttons */}
                     <div className="flex gap-2 mt-4">
-                      <Link 
-                        href={`/create-listing?edit=${listing.id}`} 
-                        className="flex-1 flex items-center justify-center gap-1 border border-gray-300 text-sm py-2 rounded-xl hover:bg-gray-50"
-                      >
+                      <Link href={`/create-listing?edit=${listing.id}`} className="flex-1 flex items-center justify-center gap-1 border border-gray-300 text-sm py-2 rounded-xl hover:bg-gray-50">
                         <Edit className="w-4 h-4" /> Edit
                       </Link>
-                      <button 
-                        onClick={() => markAsSold(listing.id)} 
-                        disabled={updatingListingId === listing.id}
-                        className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white text-sm py-2 rounded-xl hover:bg-green-700 disabled:bg-gray-400"
-                      >
+                      <button onClick={() => markAsSold(listing.id)} disabled={updatingListingId === listing.id} className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white text-sm py-2 rounded-xl hover:bg-green-700 disabled:bg-gray-400">
                         <CheckCircle className="w-4 h-4" /> Sold
                       </button>
-                      <button 
-                        onClick={() => deleteListing(listing.id)} 
-                        disabled={updatingListingId === listing.id}
-                        className="px-3 text-red-600 hover:bg-red-50 rounded-xl border border-red-200"
-                      >
+                      <button onClick={() => deleteListing(listing.id)} disabled={updatingListingId === listing.id} className="px-3 text-red-600 hover:bg-red-50 rounded-xl border border-red-200">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
