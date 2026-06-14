@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Upload, Edit, Trash2, CheckCircle, Eye } from 'lucide-react';
+import { Upload, Edit, Trash2, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Listing {
@@ -40,6 +40,7 @@ export default function SellerDashboard() {
   const [user, setUser] = useState<any>(null);
   const [userName, setUserName] = useState('');
   const [userAvatar, setUserAvatar] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [activeListings, setActiveListings] = useState<Listing[]>([]);
   const [soldListings, setSoldListings] = useState<Listing[]>([]);
@@ -69,16 +70,17 @@ export default function SellerDashboard() {
     }
     setUser(user);
 
-    // Profile
+    // Profile + Admin Check
     const { data: profile } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url')
+      .select('full_name, avatar_url, is_admin')
       .eq('id', user.id)
       .single();
 
     if (profile) {
       setUserName(profile.full_name || '');
       setUserAvatar(profile.avatar_url || '');
+      setIsAdmin(profile.is_admin || false);
     }
 
     // Active Listings
@@ -122,7 +124,7 @@ export default function SellerDashboard() {
         .in('order_id', orderIds);
       if (escrowData) {
         const map: Record<string, Escrow> = {};
-        escrowData.forEach(e => map[e.order_id] = e);
+        escrowData.forEach(e => (map[e.order_id] = e));
         setEscrowMap(map);
       }
     }
@@ -143,10 +145,10 @@ export default function SellerDashboard() {
   };
 
   const deleteListing = async (listingId: string) => {
-    if (!confirm('Delete this listing?')) return;
+    if (!confirm('Are you sure you want to delete this listing?')) return;
     setUpdatingListingId(listingId);
     const { error } = await supabase.from('listings').delete().eq('id', listingId).eq('user_id', user.id);
-    if (error) toast.error('Failed to delete');
+    if (error) toast.error('Failed to delete listing');
     else {
       toast.success('Listing deleted');
       fetchData();
@@ -179,7 +181,7 @@ export default function SellerDashboard() {
     setUpdatingOrderId(null);
   };
 
-  // Avatar handlers (unchanged)
+  // Avatar Handlers
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -241,14 +243,32 @@ export default function SellerDashboard() {
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <Link href="/seller/orders" className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50">View All Orders</Link>
-          <Link href="/seller/edit-profile" className="border px-4 py-2 rounded-xl text-sm hover:bg-gray-50">Edit Profile</Link>
+        <div className="flex items-center gap-3">
+          {/* Admin Reports Link */}
+          {isAdmin && (
+            <Link 
+              href="/admin/reports" 
+              className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium flex items-center gap-2"
+            >
+              ⚠️ Admin Reports
+            </Link>
+          )}
+
+          <Link 
+            href="/seller/orders" 
+            className="px-5 py-2.5 border border-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+          >
+            View All Orders
+          </Link>
+
+          <Link href="/seller/edit-profile" className="border px-4 py-2 rounded-xl text-sm hover:bg-gray-50">
+            Edit Profile
+          </Link>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white border rounded-2xl p-6">
           <p className="text-sm text-gray-500">Total Revenue</p>
           <p className="text-3xl font-bold">R{totalRevenue.toLocaleString()}</p>
@@ -269,52 +289,57 @@ export default function SellerDashboard() {
         </div>
       </div>
 
-      {/* Received Orders - Polished */}
-      <div className="mb-12">
-        <div className="flex justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Received Orders ({receivedOrders.length})</h2>
-          <Link href="/seller/orders" className="text-[#2E8B57] hover:underline">View All Orders →</Link>
+      {/* Received Orders */}
+      <div className="mb-10">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-[#1E3A5F]">Received Orders ({receivedOrders.length})</h2>
+          <Link href="/seller/orders" className="text-[#2E8B57] hover:underline text-sm">View All →</Link>
         </div>
 
         {receivedOrders.length === 0 ? (
-          <div className="bg-white border rounded-2xl p-12 text-center">No orders yet.</div>
+          <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">
+            You haven't received any orders yet.
+          </div>
         ) : (
           <div className="space-y-4">
-            {receivedOrders.slice(0, 6).map((order) => {
+            {receivedOrders.slice(0, 8).map((order) => {
               const escrow = escrowMap[order.id];
               const canShip = order.status === 'paid';
               const canRequestRelease = order.status === 'shipped' && escrow?.status === 'held';
 
               return (
-                <div key={order.id} className="bg-white border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">📦</div>
-                    <div>
-                      <p className="font-mono text-sm text-gray-500">Order #{order.id.slice(0,8)}</p>
-                      <p className="text-xl font-bold">R{(order.total_amount || 0).toLocaleString()}</p>
-                      <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString()} • {order.payment_method}</p>
-                    </div>
+                <div key={order.id} className="bg-white border rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <p className="font-mono text-sm text-gray-500">Order #{order.id.slice(0, 8)}</p>
+                    <p className="text-2xl font-bold mt-1">R{(order.total_amount || 0).toLocaleString()}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {new Date(order.created_at).toLocaleDateString()} • {order.payment_method || 'PayFast'}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <span className={`px-4 py-1.5 text-sm rounded-full capitalize ${
+                    <span className={`px-3 py-1 text-sm rounded-full capitalize font-medium ${
                       order.status === 'paid' ? 'bg-blue-100 text-blue-700' :
-                      order.status === 'shipped' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                      order.status === 'shipped' ? 'bg-amber-100 text-amber-700' :
+                      order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                     }`}>
                       {order.status}
                     </span>
 
                     {canShip && (
-                      <button onClick={() => markAsShipped(order.id)} disabled={updatingOrderId === order.id} className="bg-[#2E8B57] text-white px-5 py-2 rounded-xl text-sm">
+                      <button onClick={() => markAsShipped(order.id)} disabled={updatingOrderId === order.id} className="bg-[#2E8B57] hover:bg-[#246B46] text-white px-5 py-2 rounded-xl text-sm font-medium disabled:bg-gray-400">
                         Mark as Shipped
                       </button>
                     )}
 
                     {canRequestRelease && (
-                      <button onClick={() => requestEscrowRelease(order.id)} disabled={updatingOrderId === order.id} className="bg-purple-600 text-white px-5 py-2 rounded-xl text-sm">
-                        Request Release
+                      <button onClick={() => requestEscrowRelease(order.id)} disabled={updatingOrderId === order.id} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-medium disabled:bg-gray-400">
+                        Request Escrow Release
                       </button>
                     )}
+
+                    {escrow?.status === 'release_requested' && <span className="text-purple-600 text-sm font-medium">Release Requested</span>}
+                    {escrow?.status === 'released' && <span className="text-green-600 text-sm font-medium">Escrow Released ✓</span>}
                   </div>
                 </div>
               );
@@ -323,15 +348,15 @@ export default function SellerDashboard() {
         )}
       </div>
 
-      {/* Active Listings - Polished */}
-      <div className="mb-12">
-        <div className="flex justify-between mb-6">
+      {/* Active Listings */}
+      <div className="mb-10">
+        <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Active Listings ({activeListings.length})</h2>
-          <Link href="/create-listing" className="bg-[#2E8B57] text-white px-5 py-2 rounded-xl text-sm">+ New Listing</Link>
+          <Link href="/create-listing" className="bg-[#2E8B57] text-white px-4 py-2 rounded-xl text-sm">+ New Listing</Link>
         </div>
 
         {activeListings.length === 0 ? (
-          <div className="bg-white border rounded-2xl p-12 text-center">No active listings yet.</div>
+          <div className="bg-white border rounded-2xl p-8 text-center text-gray-600">No active listings yet.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {activeListings.map((listing) => {
@@ -344,11 +369,11 @@ export default function SellerDashboard() {
                     <p className="text-xl font-bold text-[#1E3A5F] mt-2">R{listing.price.toLocaleString()}</p>
                     <p className="text-sm text-gray-500 mt-1">📍 {listing.location}</p>
 
-                    <div className="flex gap-2 mt-5">
-                      <Link href={`/create-listing?edit=${listing.id}`} className="flex-1 flex items-center justify-center gap-1 border py-2 rounded-xl text-sm hover:bg-gray-50">
+                    <div className="flex gap-2 mt-4">
+                      <Link href={`/create-listing?edit=${listing.id}`} className="flex-1 flex items-center justify-center gap-1 border border-gray-300 text-sm py-2 rounded-xl hover:bg-gray-50">
                         <Edit className="w-4 h-4" /> Edit
                       </Link>
-                      <button onClick={() => markAsSold(listing.id)} disabled={updatingListingId === listing.id} className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white py-2 rounded-xl text-sm hover:bg-green-700">
+                      <button onClick={() => markAsSold(listing.id)} disabled={updatingListingId === listing.id} className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white text-sm py-2 rounded-xl hover:bg-green-700 disabled:bg-gray-400">
                         <CheckCircle className="w-4 h-4" /> Sold
                       </button>
                       <button onClick={() => deleteListing(listing.id)} disabled={updatingListingId === listing.id} className="px-3 text-red-600 hover:bg-red-50 rounded-xl border border-red-200">
@@ -363,10 +388,32 @@ export default function SellerDashboard() {
         )}
       </div>
 
+      {/* Sold Listings */}
+      {soldListings.length > 0 && (
+        <div>
+          <h2 className="text-2xl font-semibold mb-6">Recent Sales</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {soldListings.slice(0, 8).map((listing) => {
+              const image = listing.images?.[0] || 'https://picsum.photos/id/20/400/300';
+              return (
+                <div key={listing.id} className="bg-white border rounded-2xl overflow-hidden opacity-90">
+                  <img src={image} alt={listing.title} className="w-full h-48 object-cover" />
+                  <div className="p-5">
+                    <h3 className="font-semibold">{listing.title}</h3>
+                    <p className="text-xl font-bold mt-2">R{listing.price.toLocaleString()}</p>
+                    <div className="mt-2 text-sm text-green-600 font-medium">✓ Sold</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Avatar Modal */}
       {showAvatarModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md mx-4">
             <h3 className="text-xl font-semibold mb-6">Update Profile Picture</h3>
             <div className="flex flex-col items-center">
               <div className="w-32 h-32 rounded-full overflow-hidden border mb-6">
