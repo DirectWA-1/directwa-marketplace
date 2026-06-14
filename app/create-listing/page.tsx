@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +24,9 @@ function CreateListingContent() {
   const isEditing = !!editId;
 
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [generatingAI, setGeneratingAI] = useState(false);
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     price: '',
@@ -37,23 +40,26 @@ function CreateListingContent() {
   const [newImages, setNewImages] = useState<File[]>([]);
   const [objectUrls, setObjectUrls] = useState<string[]>([]);
 
-  // Cleanup preview URLs
+  // Cleanup object URLs
   useEffect(() => {
-    return () => {
-      objectUrls.forEach(url => URL.revokeObjectURL(url));
-    };
+    return () => objectUrls.forEach(url => URL.revokeObjectURL(url));
   }, [objectUrls]);
 
-  // Load existing data if editing
+  // Load existing listing if editing
   useEffect(() => {
     if (editId) {
       loadExistingListing();
+    } else {
+      setChecking(false);
     }
   }, [editId]);
 
   const loadExistingListing = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
 
     const { data, error } = await supabase
       .from('listings')
@@ -77,6 +83,7 @@ function CreateListingContent() {
       description: data.description || '',
     });
     setExistingImages(data.images || []);
+    setChecking(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -84,6 +91,46 @@ function CreateListingContent() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // ==================== AI DESCRIPTION GENERATOR ====================
+  const generateAIDescription = async () => {
+    if (!formData.title.trim()) {
+      return toast.error('Please enter a title first');
+    }
+
+    setGeneratingAI(true);
+
+    try {
+      const response = await fetch('/api/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          category: formData.category,
+          condition: formData.condition,
+          location: formData.location,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate description');
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        description: data.description,
+      }));
+
+      toast.success('AI description generated!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to generate description');
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  // Image handling (keep your existing logic)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const remaining = 5 - (existingImages.length + newImages.length);
@@ -106,12 +153,13 @@ function CreateListingContent() {
     setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Submit handler (keep your existing logic)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const priceNum = parseFloat(formData.price);
     if (!formData.title.trim() || isNaN(priceNum) || priceNum <= 0 || !formData.location.trim()) {
-      return toast.error('Please fill Title, valid Price, and Location');
+      return toast.error('Please fill in Title, valid Price, and Location');
     }
 
     setLoading(true);
@@ -120,8 +168,8 @@ function CreateListingContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('You must be logged in');
 
-      // Upload new images
       let uploadedUrls: string[] = [];
+
       for (const file of newImages) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -156,11 +204,15 @@ function CreateListingContent() {
 
       router.push('/my-listings');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save listing');
+      toast.error(err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return <div className="flex justify-center items-center min-h-[70vh]">Loading...</div>;
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -169,7 +221,7 @@ function CreateListingContent() {
       </h1>
 
       <div className="bg-white border rounded-3xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Title */}
           <div>
             <label className="block text-sm font-semibold mb-2">Item Title *</label>
@@ -179,7 +231,6 @@ function CreateListingContent() {
               value={formData.title}
               onChange={handleInputChange}
               className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-              placeholder="iPhone 14 Pro Max"
               required
             />
           </div>
@@ -188,27 +239,11 @@ function CreateListingContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-semibold mb-2">Price (R) *</label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-                placeholder="12500"
-                required
-              />
+              <input type="number" name="price" value={formData.price} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
             </div>
             <div>
               <label className="block text-sm font-semibold mb-2">Location *</label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className="w-full border rounded-2xl px-5 py-3.5 text-lg"
-                placeholder="Johannesburg, Gauteng"
-                required
-              />
+              <input type="text" name="location" value={formData.location} onChange={handleInputChange} className="w-full border rounded-2xl px-5 py-3.5 text-lg" required />
             </div>
           </div>
 
@@ -235,17 +270,29 @@ function CreateListingContent() {
             </div>
           </div>
 
-          {/* Description */}
+          {/* Description with AI Button */}
           <div>
-            <label className="block text-sm font-semibold mb-2">Description</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-semibold">Description</label>
+              <button
+                type="button"
+                onClick={generateAIDescription}
+                disabled={generatingAI || !formData.title.trim()}
+                className="flex items-center gap-2 text-sm px-4 py-1.5 rounded-xl bg-purple-100 text-purple-700 hover:bg-purple-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="w-4 h-4" />
+                {generatingAI ? 'Generating...' : 'Generate with AI'}
+              </button>
+            </div>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              rows={5}
+              rows={6}
               className="w-full border rounded-3xl px-5 py-4"
-              placeholder="Describe your item in detail..."
+              placeholder="Describe your item... or use AI to generate one"
             />
+            <p className="text-xs text-gray-500 mt-1">Tip: Fill in the title, category, and condition first for better AI results.</p>
           </div>
 
           {/* Image Upload */}
@@ -255,7 +302,7 @@ function CreateListingContent() {
               <input type="file" multiple accept="image/*" onChange={handleImageChange} className="hidden" id="images" disabled={existingImages.length + newImages.length >= 5} />
               <label htmlFor="images" className="cursor-pointer">
                 <Upload className="w-8 h-8 mx-auto mb-3 text-gray-400" />
-                <p className="font-medium">Click to upload photos (images will be compressed)</p>
+                <p className="font-medium">Click to upload photos</p>
               </label>
             </div>
 
@@ -281,11 +328,7 @@ function CreateListingContent() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg"
-          >
+          <button type="submit" disabled={loading} className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white font-semibold py-4 rounded-2xl text-lg">
             {loading ? (isEditing ? 'Updating...' : 'Creating...') : isEditing ? 'Update Listing' : 'Create Listing'}
           </button>
         </form>
