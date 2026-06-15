@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 interface CartItem {
@@ -14,16 +14,25 @@ interface CartItem {
   seller_id?: string;
 }
 
+interface PayFastInitiateResponse {
+  success?: boolean;
+  error?: string;
+  payment_url?: string;
+  payment_data?: Record<string, string>;
+  reference?: string;
+}
+
 export default function CheckoutContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const supabase: SupabaseClient = useMemo(() => {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-  }, []);
+  const supabase = useMemo(
+    () =>
+      createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      ),
+    []
+  );
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -37,26 +46,29 @@ export default function CheckoutContent() {
     city: '',
     postalCode: '',
   });
+
   const [saveToProfile, setSaveToProfile] = useState(true);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useEffect(() => {
     const loadData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
 
-      if (!user) {
-        toast.error('Please login to continue to checkout');
+      if (!currentUser) {
+        toast.error('Please log in to checkout');
         router.push('/login?redirect=/checkout');
         return;
       }
 
-      setUser(user);
+      setUser(currentUser);
 
       const { data: profile } = await supabase
         .from('profiles')
         .select('shipping_address')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single();
 
       if (profile?.shipping_address) {
@@ -66,18 +78,22 @@ export default function CheckoutContent() {
       const savedCart = JSON.parse(localStorage.getItem('cart') || '[]');
       setCart(savedCart);
 
-      if (savedCart.length === 0 && !searchParams.get('payment_intent')) {
+      if (savedCart.length === 0) {
         router.push('/cart');
+        return;
       }
 
       setLoading(false);
     };
 
-    loadData();
-  }, [router, searchParams, supabase]);
+    void loadData();
+  }, [router, supabase]);
 
   const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setShipping({ ...shipping, [e.target.name]: e.target.value });
+    setShipping((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const saveShippingToProfile = async () => {
@@ -88,18 +104,44 @@ export default function CheckoutContent() {
         .from('profiles')
         .update({ shipping_address: shipping })
         .eq('id', user.id);
-    } catch (error) {
-      console.error('Failed to save address:', error);
+    } catch (err) {
+      console.error('Failed to save shipping address:', err);
     }
   };
 
+  const submitPayFastForm = (
+    paymentUrl: string,
+    paymentData: Record<string, string>
+  ) => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = paymentUrl;
+
+    Object.entries(paymentData).forEach(([key, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = key;
+      input.value = String(value);
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  };
+
   const handlePayFastPayment = async () => {
-    if (cart.length === 0) {
-      toast.error('Your cart is empty');
+    if (
+      cart.length === 0 ||
+      !shipping.fullName.trim() ||
+      !shipping.address.trim() ||
+      !shipping.city.trim()
+    ) {
+      toast.error('Please complete shipping information');
       return;
     }
-    if (!shipping.fullName || !shipping.address) {
-      toast.error('Please fill in your shipping address');
+
+    if (!user?.email) {
+      toast.error('Missing user email address');
       return;
     }
 
@@ -107,7 +149,7 @@ export default function CheckoutContent() {
     await saveShippingToProfile();
 
     try {
-      const response = await fetch('/api/payfast/initiate', {
+      const res = await fetch('/api/payfast/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -116,30 +158,34 @@ export default function CheckoutContent() {
           buyer_email: user.email,
           buyer_name: shipping.fullName,
           buyer_phone: shipping.phone,
+          user_id: user.id,
         }),
       });
 
-      const data = await response.json();
+      const data: PayFastInitiateResponse = await res.json();
 
-      if (data.success && data.payment_url) {
-        window.location.href = data.payment_url;
-      } else {
-        toast.error(data.error || 'Failed to start PayFast payment');
+      if (!res.ok || !data.success || !data.payment_url || !data.payment_data) {
+        toast.error(data.error || 'Payment initiation failed');
+        return;
       }
+
+      submitPayFastForm(data.payment_url, data.payment_data);
     } catch (error) {
-      toast.error('Something went wrong with PayFast');
+      console.error('PayFast initiation failed:', error);
+      toast.error('Failed to connect to payment gateway');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleCashOnDelivery = async () => {
-    if (cart.length === 0) {
-      toast.error('Your cart is empty');
-      return;
-    }
-    if (!shipping.fullName || !shipping.address) {
-      toast.error('Please fill in your shipping address');
+    if (
+      cart.length === 0 ||
+      !shipping.fullName.trim() ||
+      !shipping.address.trim() ||
+      !shipping.city.trim()
+    ) {
+      toast.error('Please complete shipping information');
       return;
     }
 
@@ -147,16 +193,19 @@ export default function CheckoutContent() {
     await saveShippingToProfile();
 
     try {
-      const bySeller: any = {};
-      cart.forEach(item => {
+      const bySeller: Record<string, CartItem[]> = {};
+
+      cart.forEach((item) => {
         const sid = item.seller_id || 'unknown';
         if (!bySeller[sid]) bySeller[sid] = [];
         bySeller[sid].push(item);
       });
 
-      for (const sellerId of Object.keys(bySeller)) {
-        const items = bySeller[sellerId];
-        const sellerTotal = items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+      for (const [sellerId, items] of Object.entries(bySeller)) {
+        const sellerTotal = items.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        );
 
         await fetch('/api/create-order', {
           method: 'POST',
@@ -164,108 +213,128 @@ export default function CheckoutContent() {
           body: JSON.stringify({
             buyer_id: user.id,
             seller_id: sellerId,
-            listing_id: items[0].id,
-            amount: sellerTotal,
-            payment_reference: `COD-${Date.now()}`,
-            delivery_method: 'cod',
+            items,
+            total: sellerTotal,
+            payment_method: 'cod',
+            shipping_address: shipping,
           }),
         });
       }
 
       localStorage.removeItem('cart');
       window.dispatchEvent(new Event('cartUpdated'));
+
+      toast.success(
+        'Order placed successfully! You will be contacted by the seller.'
+      );
       router.push('/order-confirmation?method=cod');
     } catch (error) {
-      toast.error('Failed to place order');
+      console.error('COD order failed:', error);
+      toast.error('Failed to place COD order');
     } finally {
       setProcessing(false);
     }
   };
 
   if (loading) {
-    return <div className="p-8 text-center">Preparing checkout...</div>;
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        Loading checkout...
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-[#1E3A5F] mb-8">Checkout</h1>
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold text-[#1E3A5F] mb-10 text-center">
+        Checkout
+      </h1>
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Shipping Address */}
-        <div className="bg-white border rounded-2xl p-8">
-          <h2 className="text-xl font-semibold mb-6">Shipping Address</h2>
+      <div className="grid md:grid-cols-5 gap-8">
+        <div className="md:col-span-3 bg-white border rounded-3xl p-8">
+          <h2 className="text-2xl font-semibold mb-6">Shipping Details</h2>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <input
               type="text"
               name="fullName"
-              placeholder="Full Name"
+              placeholder="Full Name *"
               value={shipping.fullName}
               onChange={handleShippingChange}
-              className="w-full border rounded-xl px-4 py-3"
+              className="w-full border rounded-2xl px-5 py-3"
               required
             />
+
             <input
               type="tel"
               name="phone"
               placeholder="Phone Number"
               value={shipping.phone}
               onChange={handleShippingChange}
-              className="w-full border rounded-xl px-4 py-3"
+              className="w-full border rounded-2xl px-5 py-3"
             />
+
             <input
               type="text"
               name="address"
-              placeholder="Street Address"
+              placeholder="Street Address *"
               value={shipping.address}
               onChange={handleShippingChange}
-              className="w-full border rounded-xl px-4 py-3"
+              className="w-full border rounded-2xl px-5 py-3"
               required
             />
+
             <div className="grid grid-cols-2 gap-4">
               <input
                 type="text"
                 name="city"
-                placeholder="City"
+                placeholder="City *"
                 value={shipping.city}
                 onChange={handleShippingChange}
-                className="w-full border rounded-xl px-4 py-3"
+                className="border rounded-2xl px-5 py-3"
                 required
               />
+
               <input
                 type="text"
                 name="postalCode"
                 placeholder="Postal Code"
                 value={shipping.postalCode}
                 onChange={handleShippingChange}
-                className="w-full border rounded-xl px-4 py-3"
+                className="border rounded-2xl px-5 py-3"
               />
             </div>
 
-            <label className="flex items-center gap-2 text-sm mt-2">
+            <label className="flex items-center gap-3 text-sm cursor-pointer">
               <input
                 type="checkbox"
                 checked={saveToProfile}
                 onChange={(e) => setSaveToProfile(e.target.checked)}
-                className="accent-[#2E8B57]"
+                className="accent-[#2E8B57] w-5 h-5"
               />
-              Save this address to my profile
+              Save address to my profile for future orders
             </label>
           </div>
         </div>
 
-        {/* Order Summary + Payment */}
-        <div className="bg-white border rounded-2xl p-8">
-          <h2 className="text-xl font-semibold mb-6">Order Summary</h2>
+        <div className="md:col-span-2 bg-white border rounded-3xl p-8 h-fit sticky top-8">
+          <h2 className="text-2xl font-semibold mb-6">Order Summary</h2>
 
           {cart.map((item) => (
-            <div key={item.id} className="flex justify-between py-3 border-b">
-              <span>{item.title} × {item.quantity}</span>
-              <span>R{(item.price * item.quantity).toLocaleString()}</span>
+            <div
+              key={item.id}
+              className="flex justify-between py-3 border-b last:border-none"
+            >
+              <span className="line-clamp-1 pr-4">
+                {item.title} × {item.quantity}
+              </span>
+              <span className="font-medium">
+                R{(item.price * item.quantity).toLocaleString()}
+              </span>
             </div>
           ))}
 
-          <div className="flex justify-between text-xl font-bold mt-6 pt-4 border-t">
+          <div className="flex justify-between text-2xl font-bold mt-8 pt-6 border-t">
             <span>Total</span>
             <span>R{total.toLocaleString()}</span>
           </div>
@@ -273,16 +342,16 @@ export default function CheckoutContent() {
           <div className="mt-8 space-y-4">
             <button
               onClick={handlePayFastPayment}
-              disabled={processing}
-              className="w-full bg-[#2E8B57] hover:bg-[#246B46] text-white py-4 rounded-2xl font-semibold text-lg disabled:bg-gray-400"
+              disabled={processing || total === 0}
+              className="w-full bg-[#2E8B57] hover:bg-[#246B46] disabled:bg-gray-400 text-white py-4 rounded-2xl font-semibold text-lg transition"
             >
-              {processing ? 'Processing...' : `Pay with PayFast • R${total.toLocaleString()}`}
+              {processing ? 'Processing...' : 'Pay Securely with PayFast'}
             </button>
 
             <button
               onClick={handleCashOnDelivery}
-              disabled={processing}
-              className="w-full border border-[#2E8B57] text-[#2E8B57] hover:bg-gray-50 py-4 rounded-2xl font-semibold text-lg disabled:opacity-50"
+              disabled={processing || total === 0}
+              className="w-full border-2 border-[#2E8B57] text-[#2E8B57] hover:bg-gray-50 py-4 rounded-2xl font-semibold text-lg transition"
             >
               {processing ? 'Processing...' : 'Cash on Delivery'}
             </button>
